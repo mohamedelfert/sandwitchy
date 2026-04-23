@@ -44,7 +44,22 @@ try {
       name TEXT,
       PRIMARY KEY (sid, name)
     );
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
   `)
+  
+  // Seed default bread types if not exists
+  const hasBread = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get('bread_types')
+  if (!hasBread) {
+    const defaults = [
+      { id: 'baladi', ar: 'عيش بلدي', color: '#B83A0A', light: '#FDEEE8' },
+      { id: 'shamy',  ar: 'عيش شامي', color: '#6B2EA0', light: '#F2E8FF' },
+      { id: 'souri',  ar: 'عيش سوري', color: '#0A7C5A', light: '#E4F5EF' },
+    ]
+    db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?)').run('bread_types', JSON.stringify(defaults))
+  }
   console.log('[db]     SQLite ready →', dbPath)
 } catch (e) {
   console.warn('[db]     better-sqlite3 not available, using in-memory store:', e.message)
@@ -318,6 +333,33 @@ app.delete('/api/session/:sid', (req, res) => {
   deleteSession(req.params.sid)
   broadcast(req.params.sid)
   console.log(`[reset]  ${req.params.sid}`)
+  res.json({ ok:true })
+})
+
+// Settings
+app.get('/api/settings', (req, res) => {
+  if (!db) {
+    // Fallback if no DB
+    return res.json({
+      bread_types: [
+        { id: 'baladi', ar: 'عيش بلدي', color: '#B83A0A', light: '#FDEEE8' },
+        { id: 'shamy',  ar: 'عيش شامي', color: '#6B2EA0', light: '#F2E8FF' },
+        { id: 'souri',  ar: 'عيش سوري', color: '#0A7C5A', light: '#E4F5EF' },
+      ]
+    })
+  }
+  const rows = db.prepare('SELECT * FROM app_settings').all()
+  const settings = {}
+  rows.forEach(r => {
+    try { settings[r.key] = JSON.parse(r.value) } catch(_) { settings[r.key] = r.value }
+  })
+  res.json(settings)
+})
+
+app.post('/api/settings', (req, res) => {
+  if (!db) return res.status(500).json({ ok:false })
+  const { key, value } = req.body
+  db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, JSON.stringify(value))
   res.json({ ok:true })
 })
 

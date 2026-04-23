@@ -41,6 +41,7 @@ export default function UserApp() {
   const [submitting,   setSubmitting]   = useState(false)
   const [isEditing,    setIsEditing]    = useState(false)
   const [telegramUser, setTelegramUser] = useState('')
+  const [breadTypes,   setBreadTypes]   = useState([])
 
   const [rests,     setRests]     = useState(INIT_RESTS)
   const [lines,     setLines]     = useState([])
@@ -54,6 +55,11 @@ export default function UserApp() {
     const p = new URLSearchParams(window.location.search)
     const s = p.get('s')
     if (s) { setSessionId(s); setScreen('name') }
+    
+    // Fetch settings
+    api.getSettings().then(s => {
+      if (s.bread_types) setBreadTypes(s.bread_types)
+    })
   }, [])
 
   // SSE
@@ -199,8 +205,8 @@ export default function UserApp() {
       )}
 
       {screen==='menu' && activeRest && (
-        <MenuScreen
           activeRest={activeRest} lines={lines} notes={notes} totalItems={totalItems}
+          breadTypes={breadTypes}
           onBack={() => setScreen('home')}
           onAddL={addL} onSubL={subL} onUpdatePrice={handleUpdatePrice}
           onAddItem={handleAddItem} onSetNote={setNote}
