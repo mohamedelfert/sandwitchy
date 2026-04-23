@@ -16,6 +16,7 @@ app.use(express.json({ limit: '100kb' }))
 // ── 1. SQLite persistent store ────────────────────────────────
 let db
 try {
+  if (process.env.VERCEL) throw new Error('Vercel environment detected. Forcing in-memory store.')
   const Database = require('better-sqlite3')
   const dbPath   = process.env.DB_PATH || path.join(__dirname, 'data', 'sandwitchy.db')
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
@@ -386,12 +387,16 @@ app.post('/api/settings', (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')))
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')))
 
-app.listen(PORT, '0.0.0.0', () => {
-  const ip = Object.values(os.networkInterfaces()).flat().find(n=>n.family==='IPv4'&&!n.internal)?.address
-  console.log('\n  🍽️  طلباتي v2\n')
-  console.log(`  Local:   http://localhost:${PORT}`)
-  if (ip) console.log(`  Network: http://${ip}:${PORT}`)
-  console.log(`\n  Admin:   http://${ip||'localhost'}:${PORT}/?admin=1`)
-  console.log(`  n8n:     ${N8N_WEBHOOK||'⚠️  N8N_WEBHOOK not set'}`)
-  console.log(`  SQLite:  ${db ? 'enabled' : 'in-memory fallback'}\n`)
-})
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    const ip = Object.values(os.networkInterfaces()).flat().find(n=>n.family==='IPv4'&&!n.internal)?.address
+    console.log('\n  🍽️  طلباتي v2\n')
+    console.log(`  Local:   http://localhost:${PORT}`)
+    if (ip) console.log(`  Network: http://${ip}:${PORT}`)
+    console.log(`\n  Admin:   http://${ip||'localhost'}:${PORT}/?admin=1`)
+    console.log(`  n8n:     ${N8N_WEBHOOK||'⚠️  N8N_WEBHOOK not set'}`)
+    console.log(`  SQLite:  ${db ? 'enabled' : 'in-memory fallback'}\n`)
+  })
+}
+
+module.exports = app
