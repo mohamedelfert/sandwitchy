@@ -11,4 +11,5 @@ export const api = {
   setExpected:   (sid,names) => fetch(`/api/session/${sid}/expected`,{ method:'PUT',   headers:{'Content-Type':'application/json'}, body:JSON.stringify({names}) }),
   getSettings:   ()          => fetch(`/api/settings`).then(r=>r.json()),
   updateSettings:(key,value) => fetch(`/api/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key,value}) }).then(r=>r.json()),
+  getActiveSessions: ()      => fetch(`/api/sessions/active`).then(r=>r.json()),
 }

@@ -1,11 +1,17 @@
-import { useState } from 'react'
-import { PlusCircle, Link, ArrowRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { PlusCircle, Link, ArrowRight, Activity } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { inpSt, genId } from '../utils/helpers.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
+import { api } from '../api/client.js'
 
 export default function WelcomeScreen({ onStart }) {
   const [joinCode, setJoinCode] = useState('')
+  const [activeSessions, setActiveSessions] = useState([])
+
+  useEffect(() => {
+    api.getActiveSessions().then(setActiveSessions).catch(() => {})
+  }, [])
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }} className="animate-fade-in">
@@ -62,6 +68,34 @@ export default function WelcomeScreen({ onStart }) {
             انضم للجروب <ArrowRight size={20}/>
           </Btn>
         </div>
+
+        {activeSessions.length > 0 && (
+          <div className="glass-card" style={{ padding:'24px', borderRadius: 24 }}>
+            <div style={{ fontSize:15, fontWeight:900, color:C.dark, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+              <Activity size={18} color={C.accent}/> جلسات مفتوحة حالياً
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {activeSessions.map(sess => (
+                <button
+                  key={sess.sid}
+                  onClick={() => onStart(sess.sid)}
+                  style={{
+                    background: C.tag, border: 'none', borderRadius: 16, padding: '16px',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    transition: 'all 0.2s', fontFamily: FONT
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.primaryLight}
+                  onMouseLeave={e => e.currentTarget.style.background = C.tag}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>{sess.sid}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, background: '#FFF', padding: '4px 10px', borderRadius: 12, border: `1px solid ${C.primary}33` }}>
+                    {sess.count} أشخاص يطلبون
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: 'auto', textAlign: 'center', color: C.muted, fontSize: 12, fontWeight: 600 }}>
           Sandwitchy v1.0 • Made with ❤️ for foodies by{' '}

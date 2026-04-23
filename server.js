@@ -253,6 +253,25 @@ app.get('/events/:sid', (req, res) => {
   req.on('close', () => { clearInterval(ping); clients[sid]?.delete(res) })
 })
 
+// GET active open sessions
+app.get('/api/sessions/active', (req, res) => {
+  if (!db) {
+    const list = Object.entries(memStore)
+      .filter(([, v]) => v.status === 'open' && Object.keys(v.orders).length > 0)
+      .map(([k, v]) => ({ sid: k, count: Object.keys(v.orders).length }))
+    return res.json(list)
+  }
+  const rows = db.prepare(`
+    SELECT s.sid, COUNT(o.uid) as count 
+    FROM sessions s 
+    LEFT JOIN orders o ON s.sid = o.sid 
+    WHERE s.status = 'open' 
+    GROUP BY s.sid 
+    HAVING count > 0
+  `).all()
+  res.json(rows)
+})
+
 // GET session snapshot
 app.get('/api/session/:sid', (req, res) => res.json(buildPayload(req.params.sid)))
 
