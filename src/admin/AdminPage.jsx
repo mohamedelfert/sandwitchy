@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   ShieldCheck, CheckCircle, RotateCcw, Trash2, Edit3,
-  Copy, Check, Truck, Eye, Share2, X, Clock, Users, Printer, QrCode, ArrowLeft, Bell, MessageCircle
+  Copy, Check, Truck, Eye, Share2, X, Clock, Users, Printer, QrCode, ArrowLeft, Bell, MessageCircle, Settings
 } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { DRINKS, BREAD } from '../constants/data.js'
@@ -60,6 +60,9 @@ export default function AdminPage() {
   const [status,        setStatus]        = useState('open')
   const [deadline,      setDeadlineState] = useState(null)
   const [expected,      setExpectedState] = useState([])
+  const [breadTypes,    setBreadTypes]    = useState([])
+  const [showSettings,  setShowSettings]  = useState(false)
+  const [newBread,      setNewBread]      = useState({ ar: '', color: '#B83A0A' })
   const [copied,        setCopied]        = useState('')
   const [editOrder,     setEditOrder]     = useState(null)
   const [confirmReset,  setConfirmReset]  = useState(false)
@@ -97,6 +100,9 @@ export default function AdminPage() {
       evtRef.current = es
     }
     connect()
+    api.getSettings().then(s => {
+      if (s.bread_types) setBreadTypes(s.bread_types)
+    })
     return () => evtRef.current?.close()
   }, [sid])
 
@@ -157,6 +163,24 @@ export default function AdminPage() {
     setEditOrder(null)
   }
 
+  const saveBreadSettings = async (newList) => {
+    setBreadTypes(newList)
+    await api.updateSettings('bread_types', newList)
+  }
+
+  const addBreadType = () => {
+    if (!newBread.ar.trim()) return
+    const id = newBread.ar.toLowerCase().replace(/\s+/g, '_')
+    const newList = [...breadTypes, { ...newBread, id, light: newBread.color + '11' }]
+    saveBreadSettings(newList)
+    setNewBread({ ar: '', color: '#B83A0A' })
+  }
+
+  const removeBreadType = (id) => {
+    const newList = breadTypes.filter(b => b.id !== id)
+    saveBreadSettings(newList)
+  }
+
   const orders    = Object.entries(allOrders).sort(([,a],[,b]) => a.submittedAt - b.submittedAt)
   const numPeople = orders.length
   const perPerson = numPeople > 0 ? delivery / numPeople : 0
@@ -203,6 +227,7 @@ export default function AdminPage() {
              <Btn onClick={shareWhatsApp} color="#25D366" style={{ padding: '0 16px', height: 40 }}>
               <MessageCircle size={18} style={{ marginLeft: 6 }}/> واتساب
             </Btn>
+            <GhostBtn onClick={()=>setShowSettings(true)} style={{ padding: '8px 12px' }}><Settings size={18}/></GhostBtn>
             <GhostBtn onClick={()=>setShowQR(true)} style={{ padding: '8px 12px' }}><QrCode size={18}/></GhostBtn>
             <GhostBtn onClick={()=>copyText(orderLink(),'link')} style={{ padding: '8px 12px' }}>{copied==='link' ? <Check size={18} color={C.green}/> : <Copy size={18}/>}</GhostBtn>
           </div>
@@ -365,6 +390,39 @@ export default function AdminPage() {
              </div>
            ))}
            <Btn onClick={saveEditOrder} style={{ width:'100%', marginTop:16 }}>حفظ</Btn>
+        </Modal>
+      )}
+      {showSettings && (
+        <Modal title="إعدادات أنواع العيش" onClose={()=>setShowSettings(false)}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, fontWeight: 700 }}>الأنواع الموجودة:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {breadTypes.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.tag, padding: '8px 12px', borderRadius: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 6, background: b.color }}></div>
+                    <span style={{ fontWeight: 800, fontSize: 14 }}>{b.ar}</span>
+                  </div>
+                  <button onClick={() => removeBreadType(b.id)} style={{ border: 'none', background: 'none', color: C.red, cursor: 'pointer', padding: 4 }}>
+                    <Trash2 size={16}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+            <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, fontWeight: 700 }}>أضف نوع جديد:</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+               <input type="text" placeholder="مثلاً: عيش فينو" value={newBread.ar} 
+                 onChange={e => setNewBread(p => ({ ...p, ar: e.target.value }))}
+                 style={{ ...inpSt({ flex: 1 }), height: 44 }} />
+               <input type="color" value={newBread.color} 
+                 onChange={e => setNewBread(p => ({ ...p, color: e.target.value }))}
+                 style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }} />
+            </div>
+            <Btn onClick={addBreadType} style={{ width: '100%', height: 44 }}>+ إضافة النوع</Btn>
+          </div>
         </Modal>
       )}
     </div>

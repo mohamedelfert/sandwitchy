@@ -31,15 +31,18 @@ const InlineNote = ({ value, onChange, FONT }) => {
   )
 }
 
-export default function MenuScreen({ activeRest, lines, notes, totalItems, onBack, onAddL, onSubL, onUpdatePrice, onAddItem, onSetNote }) {
+export default function MenuScreen({ activeRest, lines, notes, totalItems, breadTypes, onBack, onAddL, onSubL, onUpdatePrice, onAddItem, onSetNote }) {
   const [addItemOpen,  setAddItemOpen]  = useState(false)
   const [nItem,        setNItem]        = useState({ name:'', price:'' })
   const [editingPrice, setEditingPrice] = useState(null)
-  const [activeB,      setActiveB]      = useState(BREAD[0].id)
+  
+  // Use dynamic breadTypes if available, otherwise fallback to static BREAD
+  const activeBreadList = breadTypes && breadTypes.length > 0 ? breadTypes : BREAD
+  const [activeB,      setActiveB]      = useState(activeBreadList[0].id)
 
   const lKey   = (r, i, b) => `${r}_${i}_${b||'none'}`
   const lQty   = (r, i, b) => lines.find(l => l.key === lKey(r, i, b))?.qty || 0
-  const lTotal = (r, i)    => BREAD.reduce((s, b) => s + lQty(r, i, b.id), 0)
+  const lTotal = (r, i)    => activeBreadList.reduce((s, b) => s + lQty(r, i, b.id), 0)
 
   const doAddItem = () => {
     if (!nItem.name.trim()) return
@@ -53,7 +56,7 @@ export default function MenuScreen({ activeRest, lines, notes, totalItems, onBac
     setEditingPrice(null)
   }
 
-  const currentBread = BREAD.find(b => b.id === activeB)
+  const currentBread = activeBreadList.find(b => b.id === activeB) || activeBreadList[0]
 
   return (
     <div style={{ minHeight:'100vh', paddingBottom:totalItems>0?100:40 }} className="animate-fade-in">
@@ -86,7 +89,7 @@ export default function MenuScreen({ activeRest, lines, notes, totalItems, onBac
         {activeRest.hasBread && (
           <div style={{ position:'sticky', top:70, zIndex:100, background:'rgba(255,255,255,0.9)', backdropFilter:'blur(10px)', padding:'15px 0', margin:'0 -18px', display:'flex', justifyContent:'center', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
             <div style={{ display:'flex', background: 'rgba(0,0,0,0.05)', borderRadius: 16, padding: 4, gap: 4 }}>
-              {BREAD.map(b => (
+              {activeBreadList.map(b => (
                 <button 
                   key={b.id} 
                   onClick={() => setActiveB(b.id)}

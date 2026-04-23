@@ -205,6 +205,7 @@ export default function UserApp() {
       )}
 
       {screen==='menu' && activeRest && (
+        <MenuScreen
           activeRest={activeRest} lines={lines} notes={notes} totalItems={totalItems}
           breadTypes={breadTypes}
           onBack={() => setScreen('home')}
