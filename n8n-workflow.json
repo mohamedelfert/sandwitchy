@@ -1,0 +1,131 @@
+{
+  "name": "Sandwitchy → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sandwitchy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook — طلباتي",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "sandwitchy-orders"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.messages",
+        "options": {}
+      },
+      "id": "split-messages",
+      "name": "Split — كل شخص",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [460, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-telegram",
+              "leftValue": "={{ $json.telegram }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-telegram",
+      "name": "عنده تليجرام؟",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 380]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ '@' + $json.telegram }}",
+        "text": "={{ \n'🍽️ *طلبك جاهز يا ' + $json.name + '!*\\n\\n' +\n'📋 *تفاصيل طلبك:*\\n' + $json.lines_text + '\\n\\n' +\n($json.delivery > 0 ? '🚗 *نصيبك من التوصيل:* ' + $json.delivery + ' ج\\n' : '') +\n'💰 *المبلغ الكلي عليك: ' + $json.total + ' ج*\\n\\n' +\n'_كود الجلسة: ' + $json.session_id + '_'\n}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "skipped",
+              "stringValue": "={{ $json.name + ' — no telegram' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "no-telegram",
+      "name": "Skip — مفيش تليجرام",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 460]
+    }
+  ],
+  "connections": {
+    "Webhook — طلباتي": {
+      "main": [
+        [
+          { "node": "Respond OK",        "type": "main", "index": 0 },
+          { "node": "Split — كل شخص",   "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Split — كل شخص": {
+      "main": [
+        [{ "node": "عنده تليجرام؟", "type": "main", "index": 0 }]
+      ]
+    },
+    "عنده تليجرام؟": {
+      "main": [
+        [{ "node": "Send Telegram Message",  "type": "main", "index": 0 }],
+        [{ "node": "Skip — مفيش تليجرام",   "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,12 @@
+export const api = {
+  getSession:    sid         => fetch(`/api/session/${sid}`).then(r=>r.json()),
+  submitOrder:   (sid,uid,b) => fetch(`/api/orders/${sid}/${uid}`,  { method:'POST',   headers:{'Content-Type':'application/json'}, body:JSON.stringify(b) }),
+  deleteOrder:   (sid,uid)   => fetch(`/api/orders/${sid}/${uid}`,  { method:'DELETE' }),
+  patchLines:    (sid,uid,ls)=> fetch(`/api/orders/${sid}/${uid}`,  { method:'PATCH',  headers:{'Content-Type':'application/json'}, body:JSON.stringify({lines:ls}) }),
+  setDelivery:   (sid,amt)   => fetch(`/api/session/${sid}/delivery`,{ method:'PUT',   headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount:amt}) }),
+  complete:      sid         => fetch(`/api/session/${sid}/complete`,{ method:'PUT' }),
+  reopen:        sid         => fetch(`/api/session/${sid}/reopen`,  { method:'PUT' }),
+  resetSession:  sid         => fetch(`/api/session/${sid}`,        { method:'DELETE' }),
+  setDeadline:   (sid,dl)    => fetch(`/api/session/${sid}/deadline`,{ method:'PUT',   headers:{'Content-Type':'application/json'}, body:JSON.stringify({deadline:dl}) }),
+  setExpected:   (sid,names) => fetch(`/api/session/${sid}/expected`,{ method:'PUT',   headers:{'Content-Type':'application/json'}, body:JSON.stringify({names}) }),
+}
