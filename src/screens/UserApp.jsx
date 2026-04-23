@@ -187,7 +187,16 @@ export default function UserApp() {
          <NameScreen
           sessionId={sessionId}
           hasLastOrder={hasLastOrder}
-          onConfirm={(name,tg) => { setUserName(name); saveStoredName(name); setTelegramUser(tg); setScreen('home') }}
+          onConfirm={(name,tg) => { 
+            setUserName(name); 
+            saveStoredName(name); 
+            setTelegramUser(tg); 
+            if (Object.values(allOrders).some(o => o.name === name)) {
+              setScreen('submitted')
+            } else {
+              setScreen('home') 
+            }
+          }}
           onRepeatLast={(name,tg) => { setUserName(name); saveStoredName(name); setTelegramUser(tg); repeatLastOrder() }}
         />
       )}
