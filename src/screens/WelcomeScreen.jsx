@@ -64,7 +64,10 @@ export default function WelcomeScreen({ onStart }) {
         </div>
 
         <div style={{ marginTop: 'auto', textAlign: 'center', color: C.muted, fontSize: 12, fontWeight: 600 }}>
-          Sandwitchy v1.0 • Made with ❤️ for foodies by mohamed elfert
+          Sandwitchy v1.0 • Made with ❤️ for foodies by{' '}
+          <a href="mailto:mohamedelfert@yahoo.com" style={{ color: C.primary, textDecoration: 'none', fontWeight: 800 }}>Mohamed Elfert</a>
+          <br/>
+          <a href="https://wa.me/201011731954" target="_blank" rel="noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 800, marginTop: 4, display: 'inline-block' }}>تواصل عبر الواتساب</a>
         </div>
       </div>
     </div>
