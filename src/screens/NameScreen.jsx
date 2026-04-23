@@ -7,8 +7,10 @@ import { Btn, GhostBtn } from '../components/Btn.jsx'
 export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepeatLast }) {
   const [name,     setName]     = useState('')
   const [telegram, setTelegram] = useState('')
+  const [phone,    setPhone]    = useState('')
   const clean  = t => t.trim().replace(/^@/, '')
   const canGo  = name.trim().length > 0
+
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }} className="animate-fade-in">
@@ -32,8 +34,16 @@ export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepea
               <label style={{ fontSize:13, color:C.muted, fontWeight:700, marginBottom:8, display: 'block' }}>الاسم بالكامل</label>
               <input type="text" placeholder="مثال: محمد أحمد"
                 value={name} onChange={e=>setName(e.target.value)}
-                onKeyDown={e=>e.key==='Enter'&&canGo&&onConfirm(name.trim(),clean(telegram))}
+                onKeyDown={e=>e.key==='Enter'&&canGo&&onConfirm(name.trim(),clean(telegram),phone.trim())}
                 style={inpSt({ direction:'rtl', fontSize:18, fontWeight:800, border: name ? `2px solid ${C.primary}33` : '2px solid rgba(0,0,0,0.05)' })} autoFocus/>
+            </div>
+
+            <div style={{ width:'100%' }}>
+              <label style={{ fontSize:13, color:C.muted, fontWeight:700, marginBottom:8, display: 'block' }}>رقم الموبايل / واتساب (اختياري)</label>
+              <input type="tel" placeholder="مثال: 01011731954"
+                value={phone} onChange={e=>setPhone(e.target.value.replace(/[^0-9+]/g,''))}
+                onKeyDown={e=>e.key==='Enter'&&canGo&&onConfirm(name.trim(),clean(telegram),phone.trim())}
+                style={inpSt({ direction:'ltr', textAlign:'left', fontSize:15, fontWeight:600, border: phone ? `2px solid ${C.primary}33` : '2px solid rgba(0,0,0,0.05)' })}/>
             </div>
 
             <div style={{ width:'100%' }}>
@@ -45,18 +55,18 @@ export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepea
                 <input type="text" placeholder="username"
                   value={telegram}
                   onChange={e=>setTelegram(e.target.value.replace(/[^a-zA-Z0-9_]/g,'').toLowerCase())}
-                  onKeyDown={e=>e.key==='Enter'&&canGo&&onConfirm(name.trim(),clean(telegram))}
+                  onKeyDown={e=>e.key==='Enter'&&canGo&&onConfirm(name.trim(),clean(telegram),phone.trim())}
                   style={inpSt({ textAlign:'left', paddingLeft:36, fontSize:15, fontWeight: 600, border: telegram ? `2px solid ${C.primary}33` : '2px solid rgba(0,0,0,0.05)' })}/>
               </div>
             </div>
 
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-              <Btn onClick={()=>canGo&&onConfirm(name.trim(),clean(telegram))} disabled={!canGo} style={{ width: '100%', height: 56 }}>
+              <Btn onClick={()=>canGo&&onConfirm(name.trim(),clean(telegram),phone.trim())} disabled={!canGo} style={{ width: '100%', height: 56 }}>
                 ابدأ الطلب <ArrowRight size={20}/>
               </Btn>
 
               {hasLastOrder && (
-                <GhostBtn onClick={()=>canGo&&onRepeatLast(name.trim(),clean(telegram))} disabled={!canGo} style={{ width: '100%', height: 52, color: C.purple, borderColor: `${C.purple}22` }}>
+                <GhostBtn onClick={()=>canGo&&onRepeatLast(name.trim(),clean(telegram),phone.trim())} disabled={!canGo} style={{ width: '100%', height: 52, color: C.purple, borderColor: `${C.purple}22` }}>
                    <RotateCcw size={16}/> كرر نفس طلبي الأخير
                 </GhostBtn>
               )}

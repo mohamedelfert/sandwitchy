@@ -13,6 +13,7 @@ import CompleteScreen  from './CompleteScreen.jsx'
 // ── localStorage helpers ──────────────────────────────────────
 const LAST_ORDER_KEY = 'sandwitchy_last_order'
 const USER_NAME_KEY  = 'sandwitchy_user_name'
+const PHONE_KEY      = 'sandwitchy_user_phone'
 
 function saveLastOrder(lines, drinks, notes) {
   try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ lines, drinks, notes, savedAt: Date.now() })) } catch(_) {}
@@ -25,6 +26,12 @@ function saveStoredName(name) {
 }
 function loadStoredName() {
   try { return localStorage.getItem(USER_NAME_KEY) || '' } catch(_) { return '' }
+}
+function saveStoredPhone(phone) {
+  try { localStorage.setItem(PHONE_KEY, phone) } catch(_) {}
+}
+function loadStoredPhone() {
+  try { return localStorage.getItem(PHONE_KEY) || '' } catch(_) { return '' }
 }
 
 export default function UserApp() {
@@ -41,6 +48,7 @@ export default function UserApp() {
   const [submitting,   setSubmitting]   = useState(false)
   const [isEditing,    setIsEditing]    = useState(false)
   const [telegramUser, setTelegramUser] = useState('')
+  const [phoneUser,    setPhoneUser]    = useState(() => loadStoredPhone())
   const [breadTypes,   setBreadTypes]   = useState([])
 
   const [rests,     setRests]     = useState(INIT_RESTS)
@@ -145,7 +153,7 @@ export default function UserApp() {
     if (!hasAnything || submitting) return
     setSubmitting(true); setSubmitError('')
     try {
-      const res = await api.submitOrder(sessionId, myId, { name:userName, lines, drinks, notes, telegram:telegramUser })
+      const res = await api.submitOrder(sessionId, myId, { name:userName, lines, drinks, notes, telegram:telegramUser, phone:phoneUser })
       if (!res.ok) throw new Error(`${res.status}`)
       const json = await res.json()
       if (!json.ok) throw new Error('rejected')
@@ -187,17 +195,26 @@ export default function UserApp() {
          <NameScreen
           sessionId={sessionId}
           hasLastOrder={hasLastOrder}
-          onConfirm={(name,tg) => { 
+          onConfirm={(name,tg,ph) => { 
             setUserName(name); 
             saveStoredName(name); 
             setTelegramUser(tg); 
+            setPhoneUser(ph);
+            saveStoredPhone(ph);
             if (Object.values(allOrders).some(o => o.name === name)) {
               setScreen('submitted')
             } else {
               setScreen('home') 
             }
           }}
-          onRepeatLast={(name,tg) => { setUserName(name); saveStoredName(name); setTelegramUser(tg); repeatLastOrder() }}
+          onRepeatLast={(name,tg,ph) => { 
+            setUserName(name); 
+            saveStoredName(name); 
+            setTelegramUser(tg); 
+            setPhoneUser(ph);
+            saveStoredPhone(ph);
+            repeatLastOrder() 
+          }}
         />
       )}
 

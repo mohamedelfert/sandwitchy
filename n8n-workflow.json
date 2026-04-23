@@ -76,7 +76,39 @@
       "typeVersion": 2,
       "position": [
         600,
-        300
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-phone",
+              "leftValue": "={{ $json.phone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-phone",
+      "name": "عنده رقم موبايل؟",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        600,
+        400
       ]
     },
     {
@@ -102,6 +134,43 @@
           "name": "Telegram Bot"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-whatsapp-api.com/message/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ \n'🍽️ *طلبك جاهز يا ' + $json.name + '!*\\n\\n' +\n'📋 *تفاصيل طلبك:*\\n' + $json.lines_text + '\\n\\n' +\n($json.delivery > 0 ? '🚗 *نصيبك من التوصيل:* ' + $json.delivery + ' ج\\n' : '') +\n'💰 *المبلغ الكلي عليك: ' + $json.total + ' ج*\\n\\n' +\n'_كود الجلسة: ' + $json.session_id + '_'\n}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-whatsapp",
+      "name": "Send WhatsApp (Placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        850,
+        400
+      ]
     },
     {
       "parameters": {
@@ -192,22 +261,42 @@
       "main": [
         [
           {
-            "node": "عنده تليجرام؟",
+            "node": "check-telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "check-phone",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "عنده تليجرام؟": {
+    "check-telegram": {
       "main": [
         [
           {
-            "node": "Send Telegram Message",
+            "node": "send-telegram",
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "check-phone": {
+      "main": [
+        [
+          {
+            "node": "send-whatsapp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send-telegram": {
+      "main": [
         [
           {
             "node": "log-success",
@@ -217,7 +306,7 @@
         ]
       ]
     },
-    "Send Telegram Message": {
+    "send-whatsapp": {
       "main": [
         [
           {

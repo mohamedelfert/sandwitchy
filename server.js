@@ -34,6 +34,7 @@ try {
       uid         TEXT,
       name        TEXT,
       telegram    TEXT DEFAULT '',
+      phone       TEXT DEFAULT '',
       lines       TEXT DEFAULT '[]',
       drinks      TEXT DEFAULT '{}',
       notes       TEXT DEFAULT '{}',
@@ -91,7 +92,7 @@ function getOrders(sid) {
   const obj  = {}
   rows.forEach(r => {
     obj[r.uid] = {
-      name: r.name, telegram: r.telegram,
+      name: r.name, telegram: r.telegram, phone: r.phone,
       lines: JSON.parse(r.lines), drinks: JSON.parse(r.drinks),
       notes: JSON.parse(r.notes || '{}'),
       submittedAt: r.submitted_at,
@@ -103,13 +104,13 @@ function getOrders(sid) {
 function setOrder(sid, uid, data) {
   if (!db) { getMem(sid).orders[uid] = data; return }
   db.prepare(`
-    INSERT INTO orders (sid,uid,name,telegram,lines,drinks,notes,submitted_at)
-    VALUES (?,?,?,?,?,?,?,?)
+    INSERT INTO orders (sid,uid,name,telegram,phone,lines,drinks,notes,submitted_at)
+    VALUES (?,?,?,?,?,?,?,?,?)
     ON CONFLICT(sid,uid) DO UPDATE SET
-      name=excluded.name, telegram=excluded.telegram,
+      name=excluded.name, telegram=excluded.telegram, phone=excluded.phone,
       lines=excluded.lines, drinks=excluded.drinks,
       notes=excluded.notes, submitted_at=excluded.submitted_at
-  `).run(sid, uid, data.name, data.telegram||'',
+  `).run(sid, uid, data.name, data.telegram||'', data.phone||'',
     JSON.stringify(data.lines||[]), JSON.stringify(data.drinks||{}),
     JSON.stringify(data.notes||{}), data.submittedAt||Date.now())
 }
@@ -222,7 +223,7 @@ function fireN8nWebhook(sid) {
       return `• ${l.iname}${bread} ×${l.qty}${price}${note}`
     }).join('\n')
     const timeStr = o.submittedAt ? new Date(o.submittedAt).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' }) : ''
-    return { name:o.name, telegram:o.telegram||'', total:+total.toFixed(2), items_total:itemsTotal, delivery:+perPerson.toFixed(2), lines_text:linesText, session_id:sid, submitted_at:timeStr }
+    return { name:o.name, telegram:o.telegram||'', phone:o.phone||'', total:+total.toFixed(2), items_total:itemsTotal, delivery:+perPerson.toFixed(2), lines_text:linesText, session_id:sid, submitted_at:timeStr }
   })
 
   const body = JSON.stringify({ session_id:sid, delivery, num_people:numPeople, messages })
