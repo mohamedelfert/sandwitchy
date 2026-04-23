@@ -52,6 +52,11 @@ function buildWhatsAppText(allOrders, delivery, sid) {
 }
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('sandwitchy_admin_auth') === 'true')
+  const [authUsr,       setAuthUsr]       = useState('')
+  const [authPwd,       setAuthPwd]       = useState('')
+  const [authErr,       setAuthErr]       = useState('')
+
   const [sid,           setSid]           = useState('')
   const [inputCode,     setInputCode]     = useState('')
   const [allOrders,     setAllOrders]     = useState({})
@@ -192,6 +197,44 @@ export default function AdminPage() {
     const text = buildWhatsAppText(allOrders, delivery, sid)
     window.open(getWhatsAppLink(text), '_blank')
   }
+
+  const handleLogin = () => {
+    if (authUsr === 'admin' && authPwd === '123456789') {
+      localStorage.setItem('sandwitchy_admin_auth', 'true')
+      setIsAuthenticated(true)
+      setAuthErr('')
+    } else {
+      setAuthErr('اليوزر أو الباسورد غلط')
+    }
+  }
+
+  if (!isAuthenticated) return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }} className="animate-fade-in">
+      <div style={{ width:'100%', maxWidth:400 }} className="glass-card">
+        <div style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ width:80, height:80, borderRadius:24, background:C.gradAdmin, display:'flex', alignItems:'center', justifyContent:'center', margin: '0 auto 24px', boxShadow:'0 10px 25px rgba(16,185,129,0.3)', color: '#FFF' }}>
+             <ShieldCheck size={40} />
+          </div>
+          <h1 style={{ fontSize:26, fontWeight:900, color:C.dark, marginBottom: 8 }}>دخول الإدارة</h1>
+          
+          <input type="text" placeholder="اسم المستخدم"
+            value={authUsr} onChange={e=>setAuthUsr(e.target.value)}
+            style={{ ...inpSt({textAlign:'center', fontSize:16, marginBottom: 12}), direction: 'ltr' }} autoFocus/>
+            
+          <input type="password" placeholder="كلمة المرور"
+            value={authPwd} onChange={e=>setAuthPwd(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+            style={{ ...inpSt({textAlign:'center', fontSize:16, marginBottom: 20}), direction: 'ltr' }}/>
+            
+          {authErr && <div style={{ color: C.red, fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{authErr}</div>}
+          
+          <Btn onClick={handleLogin} color={C.gradAdmin} style={{ width:'100%', height: 56 }}>
+            دخول <ArrowLeft size={20} style={{ marginRight: 8 }}/>
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
 
   if (!sid) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }} className="animate-fade-in">
