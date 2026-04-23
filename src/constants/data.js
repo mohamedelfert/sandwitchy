@@ -7,7 +7,15 @@ export const BREAD = [
 export const EMOJIS = ['🥙','🌿','🔥','⭐','🌟','🥔','🧆','🌯','🍽️','🏪','🫕','🍗','🧅','🫙']
 
 export const INIT_RESTS = [
-  { id:1, name:'بطاطس السعد', emoji:'🥔', bg:'#FFFAE8', hasBread:false, items:[
+  { id:1, name:'حماده الواحي', emoji:'🔥', bg:'#FFF0E8', hasBread:true, delivery:12, items:[
+    {id:'hw1',name:'طعمية',price:11},
+    {id:'hw2',name:'فول',price:10},
+    {id:'hw3',name:'فول سلطة',price:12},
+    {id:'hw4',name:'فول بالبيض',price:17},
+    {id:'hw5',name:'بطاطس صوابع كاتشب',price:14},
+    {id:'hw6',name:'بطاطس صوابع كاتشب ومايونيز',price:16},
+  ]},
+  { id:2, name:'بطاطس السعد', emoji:'🥔', bg:'#FFFAE8', hasBread:false, items:[
     {id:'s1',name:'بطاطس سوري توابل',price:20},
     {id:'s2',name:'بطاطس بلدي توابل',price:18},
     {id:'s3',name:'بطاطس سوري توابل التميت',price:22},
