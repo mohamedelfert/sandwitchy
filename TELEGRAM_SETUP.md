@@ -1,122 +1,77 @@
-# 🤖 إعداد Telegram + n8n
+# 🤖 إعداد n8n + Telegram + Vercel
+
+بما إن الموقع حالياً **Online** على Vercel، دي الخطوات النهائية عشان تربط كل حاجة ببعض.
 
 ## الخطوة 1 — إنشاء Telegram Bot
 
 1. افتح تيليجرام وابحث عن **@BotFather**
 2. ابعت `/newbot`
-3. اكتب اسم البوت (مثال: `Sandwitchy Orders`)
-4. اكتب username للبوت (لازم ينتهي بـ `bot` — مثال: `sandwitchy_orders_bot`)
-5. هياخدك **Bot Token** — احتفظ بيه، شكله:
-   ```
-   7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-   ```
+3. اختار اسم و username (مثلاً `sandwitchy_bot`)
+4. انسخ الـ **API Token** اللي هيظهر لك.
 
 ---
 
 ## الخطوة 2 — إعداد n8n
 
 ### 2.1 Import الـ Workflow
-1. افتح n8n
-2. اضغط **New Workflow**
-3. اضغط على القائمة (⋮) → **Import from File**
-4. اختار ملف `n8n-workflow.json`
+1. افتح n8n (يفضل يكون عندك نسخة سحابية أو شغالة على VPS).
+2. اضغط **New Workflow**.
+3. (⋮) القائمة ← **Import from File** ← اختار `n8n-workflow.json`.
 
-### 2.2 ربط حساب Telegram
-1. افتح نود **"Send Telegram Message"**
-2. اضغط على **Credential** → **Create New**
-3. اكتب اسم: `Telegram Bot`
-4. في حقل **Access Token** حط الـ Token اللي جاك من BotFather
-5. اضغط **Save**
+### 2.2 ربط الحسابات
+1. اضغط على نود **"Send Telegram Message"**.
+2. في حقل **Credential** اختار **Create New** وحط الـ Token من BotFather.
+3. (اختياري) لو عايز تسجل الطلبات في **Google Sheets**:
+   - فعّل نود **"Google Sheets — Log"** (شيل الـ Disable).
+   - اربط حساب جوجل الخاص بك.
+   - حط الـ Sheet ID في الإعدادات.
 
-### 2.3 تفعيل الـ Webhook
-1. افتح نود **"Webhook — طلباتي"**
-2. اضغط **Listen for Test Event** عشان تاخد الرابط
-3. الرابط هيكون شكله:
-   ```
-   https://your-n8n.com/webhook/sandwitchy
-   ```
-4. انسخ الرابط ده
+### 2.3 الحصول على رابط الـ Webhook
+1. اضغط على نود **"Webhook — طلباتي"**.
+2. اضغط على **Production URL** (أو Test URL للتجربة) وانسخه.
+   - مثال: `https://n8n.yourdomain.com/webhook/sandwitchy`
 
 ---
 
-## الخطوة 3 — ربط السيرفر بـ n8n
+## الخطوة 3 — الربط بـ Vercel
 
-### لو بتشغّل بـ node مباشرة:
-```bash
-export N8N_WEBHOOK=https://your-n8n.com/webhook/sandwitchy
-node server.js
-```
+عشان الموقع "يشم" الـ n8n، لازم نحط الرابط في الـ Environment Variables:
 
-### لو بتستخدم ملف `.env`:
-أنشئ ملف `.env` في نفس مجلد المشروع:
-```
-N8N_WEBHOOK=https://your-n8n.com/webhook/sandwitchy
-PORT=3000
-```
-
-ثم شغّل:
-```bash
-node server.js
-```
-
-### لو بتستخدم `start.sh`:
-عدّل الملف وأضف السطر ده قبل `node server.js`:
-```bash
-export N8N_WEBHOOK=https://your-n8n.com/webhook/sandwitchy
-```
+1. افتح [Vercel Dashboard](https://vercel.com/dashboard).
+2. ادخل على مشروع **sandwitchy**.
+3. ادخل على **Settings** ← **Environment Variables**.
+4. أضف متغير جديد:
+   - **Key**: `N8N_WEBHOOK`
+   - **Value**: الرابط اللي نسخته من n8n step 2.3
+5. اضغط **Save**.
+6. **مهم:** لازم تعمل **Redeploy** عشان التغييرات تسمع، أو ادخل على **Deployments** واعمل **Redeploy** لآخر نسخة.
 
 ---
 
-## الخطوة 4 — تجربة الـ Flow
+## الخطوة 4 — تجربة التكامل
 
-1. افتح التطبيق واكتب اسمك + يوزرنيم تيليجرامك
-2. اطلب أي حاجة
-3. **مهم:** كل شخص يبعت رسالة للبوت أولاً (ابعت `/start`) — ده شرط تيليجرام
-4. من لوحة الأدمن اضغط **"تم تسليم الطلب"**
-5. المفروض كل شخص كتب username يوصله رسالة زي دي:
-
-```
-🍽️ طلبك جاهز يا محمد!
-
-📋 تفاصيل طلبك:
-• طعمية (عيش بلدي) ×1 — 11 ج
-• فول (عيش بلدي) ×1 — 10 ج
-
-🚗 نصيبك من التوصيل: 12 ج
-💰 المبلغ الكلي عليك: 33 ج
-
-كود الجلسة: ABC123
-```
+1. ادخل على موقعك: `https://sandwitchy.vercel.app/`.
+2. افتح الجلسة واطلب أي حاجة (تأكد إنك كتبت الـ Telegram Username بتاعك).
+3. **مهم جداً:** ابعت رسالة `/start` للبوت بتاعك في تيليجرام عشان يقدر يبعتلك.
+4. من Admin Panel، اضغط **"تم تسليم الطلب"**.
+5. المفروض:
+   - توصلك رسالة على تيليجرام بتفاصيل حسابك.
+   - (لو مفعل جوجل) يتسجل سطر جديد في الـ Google Sheet.
 
 ---
 
-## ⚠️ ملاحظات مهمة
+## 🔧 استكشاف الأخطاء (Troubleshooting)
 
-- **كل شخص لازم يبعت `/start` للبوت مرة واحدة** — تيليجرام مش بيسمح للبوت يبدأ محادثة مع حد من غير ما هو يبدأ أول
-- اليوزرنيم اختياري — اللي مش كاتب username هياخذه الأدمن يديله يدوياً
-- الرسالة بتاتجي بالـ Markdown — لو البوت مش بيبعت، تأكد إن الشخص بعت `/start`
+- **البوت مش بيبعت؟** تأكد من الـ Token ومن إنك بعت `/start` للبوت.
+- **n8n مش بيستلم حاجة؟** تأكد إن الـ URL في Vercel صح ومكتوب كامل بالـ `https://`.
+- **البيانات مش بتتسجل؟** جرب تفتح الـ Live Executions في n8n وتشوف السهم واصل لحد فين.
 
 ---
 
-## 🔧 تخصيص الرسالة
+## 🏗️ هيكلة البيانات (Data Schema)
 
-في n8n، افتح نود **"Send Telegram Message"** وعدّل حقل **Text**:
-
-```javascript
-'🍽️ *طلبك جاهز يا ' + $json.name + '!*\n\n' +
-'📋 *تفاصيل طلبك:*\n' + $json.lines_text + '\n\n' +
-($json.delivery > 0 ? '🚗 *نصيبك من التوصيل:* ' + $json.delivery + ' ج\n' : '') +
-'💰 *المبلغ الكلي عليك: ' + $json.total + ' ج*\n\n' +
-'_كود الجلسة: ' + $json.session_id + '_'
-```
-
-### البيانات المتاحة لكل شخص (`$json`):
-| الحقل | المعنى |
-|-------|--------|
-| `name` | اسم الشخص |
-| `telegram` | يوزرنيم تيليجرام |
-| `total` | المبلغ الكلي عليه |
-| `items_total` | قيمة الأصناف بدون توصيل |
-| `delivery` | نصيبه من التوصيل |
-| `lines_text` | تفاصيل الطلب (نص جاهز) |
-| `session_id` | كود الجلسة |
+البيانات اللي بتتبعت لـ n8n هي:
+- `session_id`: كود الجلسة.
+- `delivery`: إجمالي مبلغ التوصيل.
+- `num_people`: عدد المشتركين.
+- `messages`: قائمة بكل شخص (الاسم، التليجرام، الحساب، تفاصيل الأصناف).

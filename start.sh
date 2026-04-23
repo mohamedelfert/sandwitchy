@@ -31,5 +31,5 @@ echo ""
 echo "  ✅  تمام! بيشتغل دلوقتي..."
 echo ""
 
-# Run server
+# export N8N_WEBHOOK="https://your-n8n.com/webhook/sandwitchy"
 node server.js

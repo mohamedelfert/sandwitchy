@@ -1,5 +1,5 @@
 {
-  "name": "Sandwitchy → Telegram",
+  "name": "Sandwitchy: Order Management",
   "nodes": [
     {
       "parameters": {
@@ -12,7 +12,10 @@
       "name": "Webhook — طلباتي",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "sandwitchy-orders"
     },
     {
@@ -25,7 +28,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [460, 160]
+      "position": [
+        400,
+        140
+      ]
     },
     {
       "parameters": {
@@ -36,18 +42,28 @@
       "name": "Split — كل شخص",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [460, 380]
+      "position": [
+        400,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "has-telegram",
               "leftValue": "={{ $json.telegram }}",
               "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
           ],
           "combinator": "and"
@@ -58,7 +74,10 @@
       "name": "عنده تليجرام؟",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 380]
+      "position": [
+        600,
+        300
+      ]
     },
     {
       "parameters": {
@@ -73,7 +92,10 @@
       "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [900, 300],
+      "position": [
+        850,
+        200
+      ],
       "credentials": {
         "telegramApi": {
           "id": "TELEGRAM_CREDENTIAL_ID",
@@ -86,43 +108,142 @@
         "fields": {
           "values": [
             {
-              "name": "skipped",
-              "stringValue": "={{ $json.name + ' — no telegram' }}"
+              "name": "status",
+              "stringValue": "sent"
             }
           ]
         },
         "options": {}
       },
-      "id": "no-telegram",
-      "name": "Skip — مفيش تليجرام",
+      "id": "log-success",
+      "name": "Success",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [900, 460]
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "ENTER_YOUR_SHEET_ID_HERE",
+        "range": "A:Z",
+        "columns": {
+          "mappingMode": "manual",
+          "value": {
+            "Session ID": "={{ $json.session_id }}",
+            "Date": "={{ new Date().toLocaleDateString() }}",
+            "Name": "={{ $json.name }}",
+            "Items": "={{ $json.lines_text }}",
+            "Subtotal": "={{ $json.items_total }}",
+            "Delivery": "={{ $json.delivery }}",
+            "Total": "={{ $json.total }}",
+            "Telegram": "={{ $json.telegram }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Session ID", "displayName": "Session ID", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Date", "displayName": "Date", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Name", "displayName": "Name", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Items", "displayName": "Items", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Subtotal", "displayName": "Subtotal", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Delivery", "displayName": "Delivery", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Total", "displayName": "Total", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false },
+            { "id": "Telegram", "displayName": "Telegram", "required": false, "defaultReadOnly": false, "canBeUsedToMatch": false }
+          ]
+        }
+      },
+      "id": "google-sheets",
+      "name": "Google Sheets — Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets Account"
+        }
+      },
+      "disabled": true
     }
   ],
   "connections": {
     "Webhook — طلباتي": {
       "main": [
         [
-          { "node": "Respond OK",        "type": "main", "index": 0 },
-          { "node": "Split — كل شخص",   "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split — كل شخص",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Split — كل شخص": {
       "main": [
-        [{ "node": "عنده تليجرام؟", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "عنده تليجرام؟",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "عنده تليجرام؟": {
       "main": [
-        [{ "node": "Send Telegram Message",  "type": "main", "index": 0 }],
-        [{ "node": "Skip — مفيش تليجرام",   "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "log-success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "log-success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "log-success": {
+      "main": [
+        [
+          {
+            "node": "google-sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
   "pinData": {},
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
