@@ -52,6 +52,10 @@ try {
     );
   `)
   
+  // Migrations for existing tables
+  try { db.exec("ALTER TABLE orders ADD COLUMN telegram TEXT DEFAULT ''") } catch(_) {}
+  try { db.exec("ALTER TABLE orders ADD COLUMN phone TEXT DEFAULT ''") } catch(_) {}
+
   // Seed default bread types if not exists
   const hasBread = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get('bread_types')
   if (!hasBread) {
