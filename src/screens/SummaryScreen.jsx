@@ -16,7 +16,7 @@ import {
   getRestaurantBreakdown,
 } from '../utils/orders.js'
 
-export default function SummaryScreen({ sessionId, allOrders, delivery, rests, drinkTypes = [], breadTypes = [], sessStatus, onBack, onEditOrder }) {
+export default function SummaryScreen({ sessionId, allOrders, delivery, rests, drinkTypes = [], breadTypes = [], sessStatus, sessionTitle = '', announcement = '', expected = [], onBack, onEditOrder }) {
   const orders = getOrdersArray(allOrders)
   const numPeople = orders.length
   const perPerson = getPerPersonDelivery(allOrders, delivery)
@@ -50,13 +50,20 @@ export default function SummaryScreen({ sessionId, allOrders, delivery, rests, d
           <ChevronLeft size={22}/>
         </button>
         <div style={{ textAlign:'center' }}>
-          <div style={{ fontSize:18, fontWeight:900, color:C.dark }}>ملخص الطلبات</div>
+          <div style={{ fontSize:18, fontWeight:900, color:C.dark }}>{sessionTitle || 'ملخص الطلبات'}</div>
           <div style={{ fontSize:12, color:C.muted, fontWeight:600 }}>{numPeople} شخص شارك</div>
         </div>
         <div style={{ width:38 }}/>
       </div>
 
       <div style={{ padding:'20px 18px' }}>
+        {announcement && (
+          <div className="glass-card" style={{ padding:'14px 16px', marginBottom:20, border:`1px solid ${C.primary}22`, background:`${C.primary}08` }}>
+            <div style={{ fontSize:12, color:C.primary, fontWeight:900, marginBottom:6 }}>إعلان الجلسة</div>
+            <div style={{ fontSize:14, color:C.dark, fontWeight:700, whiteSpace:'pre-wrap' }}>{announcement}</div>
+          </div>
+        )}
+
         <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:12, marginBottom:20 }}>
           <div className="glass-card" style={{ padding:18 }}>
             <div style={{ fontSize:12, color:C.muted, fontWeight:700, marginBottom:6 }}>الإجمالي الكلي</div>
@@ -73,6 +80,15 @@ export default function SummaryScreen({ sessionId, allOrders, delivery, rests, d
               المتبقي {fmt(paymentSummary.remaining)} ج
             </div>
           </div>
+          {expected.length > 0 && (
+            <div className="glass-card" style={{ padding:18 }}>
+              <div style={{ fontSize:12, color:C.muted, fontWeight:700, marginBottom:6 }}>نسبة الاستجابة</div>
+              <div style={{ fontSize:28, fontWeight:950, color:C.dark }}>{numPeople}/{expected.length}</div>
+              <div style={{ fontSize:12, fontWeight:800, color:numPeople < expected.length ? C.red : C.green }}>
+                {numPeople < expected.length ? `${expected.length - numPeople} لسه ماطلبوش` : 'الكل طلب'}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="glass-card" style={{ padding:'18px', marginBottom:20 }}>

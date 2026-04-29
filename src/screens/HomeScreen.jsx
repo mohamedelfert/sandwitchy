@@ -7,7 +7,7 @@ import Modal from '../components/Modal.jsx'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import Countdown from '../components/Countdown.jsx'
 
-export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, onGoMenu, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit }) {
+export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, sessionTitle = '', announcement = '', expected = [], onGoMenu, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit }) {
   const [copied,      setCopied]      = useState('')
   const [addRestOpen, setAddRestOpen] = useState(false)
   const [nRest,       setNRest]       = useState({ name:'', emoji:'🥙', hasBread:true, delivery:'' })
@@ -16,6 +16,9 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
   const totalDrinks = Object.values(drinks).reduce((s,q) => s+q, 0)
   const hasAnything = lines.length > 0 || totalDrinks > 0
   const isExpired   = deadline && new Date(deadline) < new Date()
+  const orderedCount = Object.keys(allOrders).length
+  const expectedCount = expected.length
+  const progress = expectedCount > 0 ? Math.min(100, (orderedCount / expectedCount) * 100) : 0
 
   const orderLink = () => { const u=new URL(window.location.origin); u.searchParams.set('s',sessionId); return u.toString() }
   const copyText = (text,key) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(()=>setCopied(''),2500) }
@@ -32,7 +35,10 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
       {/* Premium Header */}
       <div className="glass-header" style={{ padding:'16px 18px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontSize:22, fontWeight:950, color:C.dark, letterSpacing:-0.5 }}>ساندوتشي</div>
+          <div>
+            <div style={{ fontSize:22, fontWeight:950, color:C.dark, letterSpacing:-0.5 }}>{sessionTitle || 'ساندوتشي'}</div>
+            {sessionTitle && <div style={{ fontSize:11, color:C.muted, fontWeight:700, marginTop:2 }}>منصة الطلب الجماعي</div>}
+          </div>
           <div style={{ display:'flex', gap: 8 }}>
             <GhostBtn onClick={() => window.history.back()} style={{ padding:'8px 14px', borderRadius: 12 }}>
               <ArrowLeft size={16}/>
@@ -51,7 +57,7 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
              <div style={{ fontSize:11, color:'rgba(255,255,255,0.8)', fontWeight:600 }}>الجلسة: {sessionId}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-             <div style={{ fontSize:15, fontWeight:900, color:'#FFF' }}>{Object.keys(allOrders).length}</div>
+             <div style={{ fontSize:15, fontWeight:900, color:'#FFF' }}>{orderedCount}</div>
              <div style={{ fontSize:10, color:'rgba(255,255,255,0.7)', fontWeight:700 }}>طلبوا</div>
           </div>
         </div>
@@ -59,6 +65,25 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
 
       <div style={{ padding:'20px 18px' }}>
         {deadline && <Countdown deadline={deadline} />}
+
+        {announcement && (
+          <div className="glass-card" style={{ padding:'14px 16px', marginBottom:16, border:`1px solid ${C.primary}22`, background:`${C.primary}08` }}>
+            <div style={{ fontSize:12, color:C.primary, fontWeight:900, marginBottom:6 }}>إعلان من المنسق</div>
+            <div style={{ fontSize:14, color:C.dark, fontWeight:700, whiteSpace:'pre-wrap' }}>{announcement}</div>
+          </div>
+        )}
+
+        {expectedCount > 0 && (
+          <div className="glass-card" style={{ padding:'14px 16px', marginBottom:18 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:10 }}>
+              <div style={{ fontSize:14, fontWeight:900, color:C.dark }}>تقدم الجروب</div>
+              <div style={{ fontSize:12, fontWeight:800, color:C.primary }}>{orderedCount} / {expectedCount} طلبوا</div>
+            </div>
+            <div style={{ height:10, background:C.tag, borderRadius:999, overflow:'hidden' }}>
+              <div style={{ width:`${progress}%`, height:'100%', background:C.grad, borderRadius:999 }} />
+            </div>
+          </div>
+        )}
 
         <div style={{ fontSize:16, fontWeight:900, color:C.dark, marginBottom:16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <ShoppingBag size={18} color={C.primary}/> اختار المطعم

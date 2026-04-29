@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ShieldCheck, CheckCircle, RotateCcw, Trash2, Edit3, Copy, Check, Truck, Clock, Users,
   Printer, QrCode, ArrowLeft, Bell, MessageCircle, Settings, Plus, Save, Coffee, LogOut,
-  RefreshCw, Search, Wallet, FileText, Download, Link as LinkIcon
+  RefreshCw, Wallet, FileText, Download
 } from 'lucide-react'
 import { C } from '../constants/colors.js'
 import { fmt, genId, formatTime, getWhatsAppLink, inpSt } from '../utils/helpers.js'
@@ -99,6 +99,8 @@ export default function AdminPage() {
   const [status, setStatus] = useState('open')
   const [deadline, setDeadlineState] = useState(null)
   const [expected, setExpectedState] = useState([])
+  const [sessionTitle, setSessionTitle] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const [breadTypes, setBreadTypes] = useState([])
   const [rests, setRests] = useState([])
   const [drinks, setDrinks] = useState([])
@@ -115,6 +117,10 @@ export default function AdminPage() {
   const [deadlineInput, setDeadlineInput] = useState('')
   const [desktopNotifications, setDesktopNotifications] = useState(() => localStorage.getItem('sandwitchy_admin_notifications') === 'true')
   const [savingSettings, setSavingSettings] = useState(false)
+  const [savingMeta, setSavingMeta] = useState(false)
+  const [orderSearch, setOrderSearch] = useState('')
+  const [showUnpaidOnly, setShowUnpaidOnly] = useState(false)
+  const [bulkPayLoading, setBulkPayLoading] = useState('')
 
   const evtRef = useRef(null)
   const prevCount = useRef(0)
@@ -126,6 +132,17 @@ export default function AdminPage() {
   const paymentSummary = getPaidSummary(allOrders, delivery)
   const restaurantBreakdown = getRestaurantBreakdown(allOrders, rests)
   const drinkBreakdown = getDrinkBreakdown(allOrders, drinks)
+  const filteredOrders = orders.filter(order => {
+    if (showUnpaidOnly && order.paid) return false
+    const query = orderSearch.trim().toLowerCase()
+    if (!query) return true
+    return (
+      order.name.toLowerCase().includes(query) ||
+      (order.phone || '').toLowerCase().includes(query) ||
+      (order.telegram || '').toLowerCase().includes(query) ||
+      (order.lines || []).some(line => (line.iname || '').toLowerCase().includes(query))
+    )
+  })
 
   const syncUrl = nextSid => {
     const url = new URL(window.location.href)
@@ -213,6 +230,8 @@ export default function AdminPage() {
           setStatus(payload.status || 'open')
           setDeadlineState(payload.deadline || null)
           setExpectedState(payload.expected || [])
+          setSessionTitle(payload.title || '')
+          setAnnouncement(payload.announcement || '')
         } catch (_) {}
       }
       source.onerror = () => {
@@ -283,6 +302,8 @@ export default function AdminPage() {
     setStatus('open')
     setDeadlineState(null)
     setExpectedState([])
+    setSessionTitle('')
+    setAnnouncement('')
     syncUrl('')
     refreshAdminSessions()
   }
@@ -336,6 +357,18 @@ export default function AdminPage() {
     } catch (_) {}
   }
 
+  const saveSessionMeta = async () => {
+    setSavingMeta(true)
+    try {
+      await guarded(() => api.setSessionMeta(sid, { title: sessionTitle, announcement }))
+      refreshAdminSessions()
+    } catch (_) {
+      // handled centrally
+    } finally {
+      setSavingMeta(false)
+    }
+  }
+
   const handleReset = async () => {
     try {
       await guarded(() => api.resetSession(sid))
@@ -358,6 +391,24 @@ export default function AdminPage() {
       await guarded(() => api.setPayment(sid, order.uid, !order.paid, getOrderTotal(order, perPerson)))
       refreshAdminSessions()
     } catch (_) {}
+  }
+
+  const bulkSetPayments = async paid => {
+    const targetOrders = paid ? orders.filter(order => !order.paid) : orders.filter(order => order.paid)
+    if (targetOrders.length === 0) return
+    setBulkPayLoading(paid ? 'paid' : 'unpaid')
+    try {
+      await Promise.all(
+        targetOrders.map(order =>
+          guarded(() => api.setPayment(sid, order.uid, paid, paid ? getOrderTotal(order, perPerson) : null))
+        )
+      )
+      refreshAdminSessions()
+    } catch (_) {
+      // handled centrally
+    } finally {
+      setBulkPayLoading('')
+    }
   }
 
   const deleteOrder = async uid => {
@@ -431,6 +482,7 @@ export default function AdminPage() {
     if (!q) return true
     return (
       session.sid.toLowerCase().includes(q) ||
+      (session.title || '').toLowerCase().includes(q) ||
       (session.names || []).some(name => name.toLowerCase().includes(q))
     )
   })
@@ -567,6 +619,7 @@ export default function AdminPage() {
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:12 }}>
                     <div>
                       <div style={{ fontSize:18, fontWeight:950, color:C.dark }}>{session.sid}</div>
+                      {session.title && <div style={{ fontSize:12, fontWeight:800, color:C.primary, marginTop:4 }}>{session.title}</div>}
                       <div style={{ fontSize:11, fontWeight:700, color:session.status === 'open' ? C.green : C.muted }}>
                         {session.status === 'open' ? 'مفتوحة الآن' : 'مقفولة'} · {session.count} مشاركين
                       </div>
@@ -594,6 +647,16 @@ export default function AdminPage() {
                     <GhostBtn onClick={() => copyText(orderLink(session.sid), `session-${session.sid}`)} style={{ padding:'0 14px', height:44 }}>
                       {copied === `session-${session.sid}` ? <Check size={16} color={C.green}/> : <Copy size={16}/>}
                     </GhostBtn>
+                    {session.status === 'open' && (
+                      <button onClick={() => guarded(() => api.complete(session.sid)).then(() => refreshAdminSessions()).catch(() => {})} 
+                        style={{ padding:'0 10px', height:44, background:C.green, color:'#FFF', border:'none', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer' }}>
+                        إغلاق
+                      </button>
+                    )}
+                    <button onClick={() => { if(confirm(`حذف جلسة ${session.sid}؟`)) guarded(() => api.resetSession(session.sid)).then(() => refreshAdminSessions()).catch(() => {}) }} 
+                      style={{ padding:'0 10px', height:44, background:C.redLight, color:C.red, border:'none', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer' }}>
+                      حذف
+                    </button>
                   </div>
                 </div>
               ))}
@@ -610,7 +673,7 @@ export default function AdminPage() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
           <div>
             <div style={{ fontSize:18, fontWeight:900, color:C.dark, display:'flex', alignItems:'center', gap:8 }}>
-              <ShieldCheck size={20} color={C.green}/> لوحة التحكم <span className="live-indicator"></span>
+              <ShieldCheck size={20} color={C.green}/> {sessionTitle || 'لوحة التحكم'} <span className="live-indicator"></span>
             </div>
             <div style={{ fontSize:12, color:C.muted, fontWeight:700, marginTop:2 }}>
               {status === 'complete' ? '✅ الطلب مكتمل' : '🟢 يتم المتابعة حالياً'} · {sid}
@@ -638,6 +701,27 @@ export default function AdminPage() {
             تنبيه أمان: غيّر بيانات الدخول الافتراضية ومتغير `ADMIN_SESSION_SECRET` قبل أي استخدام خارجي.
           </div>
         )}
+
+        <div className="glass-card" style={{ padding:18, marginBottom:20 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr auto', gap:10, alignItems:'start' }}>
+            <input
+              type="text"
+              placeholder="عنوان الجلسة"
+              value={sessionTitle}
+              onChange={e => setSessionTitle(e.target.value)}
+              style={inpSt({ height:46 })}
+            />
+            <textarea
+              placeholder="إعلان أو ملاحظة تظهر لكل المستخدمين"
+              value={announcement}
+              onChange={e => setAnnouncement(e.target.value)}
+              style={{ ...inpSt({ minHeight: 84, resize: 'vertical' }) }}
+            />
+            <Btn onClick={saveSessionMeta} loading={savingMeta} style={{ minWidth:120, height:46, boxShadow:'none' }}>
+              <Save size={16}/> حفظ
+            </Btn>
+          </div>
+        </div>
 
         <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginBottom:24 }}>
           <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
@@ -672,6 +756,9 @@ export default function AdminPage() {
           <Btn onClick={() => window.print()} color={C.dark} style={{ flex:1, minWidth:160, height:50 }}>
             <Printer size={18}/> طباعة
           </Btn>
+          <Btn onClick={() => { if(confirm('حذف هذه الجلسة؟ لا يمكن التراجع بعد الحذف.')) guarded(() => api.resetSession(sid)).then(leaveSession).catch(() => {}) }} color={C.red} style={{ flex:1, minWidth:160, height:50 }}>
+            <Trash2 size={18}/> حذف
+          </Btn>
           <Btn onClick={() => downloadBlob(`talabati-${sid}.md`, generateMD(allOrders, delivery, sid, { breadTypes, drinkTypes: drinks, rests }), 'text/markdown;charset=utf-8')} color={C.primary} style={{ flex:1, minWidth:160, height:50 }}>
             <FileText size={18}/> MD
           </Btn>
@@ -685,15 +772,33 @@ export default function AdminPage() {
 
         <div className="admin-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 2fr) minmax(320px, 1fr)', gap:24, alignItems:'start' }}>
           <div>
-            <div style={{ fontSize:16, fontWeight:900, color:C.dark, marginBottom:16 }}>📋 قائمة الطلبات</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+              <div style={{ fontSize:16, fontWeight:900, color:C.dark }}>📋 قائمة الطلبات</div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="ابحث باسم / صنف / رقم"
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  style={{ ...inpSt({ width: 220, height: 40, fontSize: 13 }) }}
+                />
+                <GhostBtn onClick={() => setShowUnpaidOnly(value => !value)} color={showUnpaidOnly ? C.red : C.primary} style={{ height:40, justifyContent:'center' }}>
+                  {showUnpaidOnly ? 'عرض الكل' : 'غير المدفوع فقط'}
+                </GhostBtn>
+              </div>
+            </div>
             {orders.length === 0 ? (
               <div className="glass-card" style={{ textAlign:'center', padding:'60px 0' }}>
                 <div style={{ fontSize:48, marginBottom:16 }}>🍩</div>
                 <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>لسه مفيش حد طلب حاجة</p>
               </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="glass-card" style={{ textAlign:'center', padding:'40px 0' }}>
+                <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>مفيش طلبات مطابقة للفلتر الحالي.</p>
+              </div>
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(360px, 1fr))', gap:16 }}>
-                {orders.map(order => (
+                {filteredOrders.map(order => (
                   <div key={order.uid} className="glass-card" style={{ overflow:'hidden' }}>
                     <div style={{ padding:'14px 16px', background:`${order.paid ? C.green : C.primary}08`, display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid var(--border)' }}>
                       <div style={{ width:38, height:38, borderRadius:10, background:order.paid ? C.gradAdmin : C.grad, color:'#FFF', fontWeight:900, fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -836,6 +941,14 @@ export default function AdminPage() {
                   <div style={{ fontSize:11, color:C.red, fontWeight:800 }}>المتبقي</div>
                   <div style={{ fontSize:18, fontWeight:950, color:C.red }}>{fmt(paymentSummary.remaining)} ج</div>
                 </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12 }}>
+                <Btn onClick={() => bulkSetPayments(true)} loading={bulkPayLoading === 'paid'} style={{ height:40, fontSize:12, boxShadow:'none' }}>
+                  دفع الكل
+                </Btn>
+                <GhostBtn onClick={() => bulkSetPayments(false)} color={C.red} style={{ height:40, justifyContent:'center', fontSize:12 }}>
+                  رجّع الكل غير مدفوع
+                </GhostBtn>
               </div>
             </div>
 

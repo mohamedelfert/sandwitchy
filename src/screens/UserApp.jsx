@@ -51,6 +51,8 @@ export default function UserApp() {
   const [sessStatus,   setSessStatus]   = useState('open')
   const [deadline,     setDeadline]     = useState(null)
   const [expected,     setExpected]     = useState([])
+  const [sessionTitle, setSessionTitle] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const [submitError,  setSubmitError]  = useState('')
   const [submitting,   setSubmitting]   = useState(false)
   const [isEditing,    setIsEditing]    = useState(false)
@@ -94,6 +96,8 @@ export default function UserApp() {
           setSessStatus(d.status || 'open')
           setDeadline(d.deadline || null)
           setExpected(d.expected || [])
+          setSessionTitle(d.title || '')
+          setAnnouncement(d.announcement || '')
         } catch (_) {}
       }
       es.onerror = () => { es.close(); setTimeout(connect, 3000) }
@@ -181,7 +185,7 @@ export default function UserApp() {
 
   // Global complete state
   if (sessStatus==='complete' && screen!=='welcome' && screen!=='name') {
-    return <CompleteScreen userName={userName} allOrders={allOrders} delivery={delivery} sessionId={sessionId}/>
+    return <CompleteScreen userName={userName} allOrders={allOrders} delivery={delivery} sessionId={sessionId} sessionTitle={sessionTitle} announcement={announcement}/>
   }
 
   const activeRest = rests.find(r => r.id === activeRid)
@@ -234,7 +238,7 @@ export default function UserApp() {
         <HomeScreen
           userName={userName} sessionId={sessionId} rests={rests} setRests={setRests}
           lines={lines} drinks={drinks} drinkTypes={drinkTypes} allOrders={allOrders} isEditing={isEditing}
-          deadline={deadline} sessStatus={sessStatus}
+          deadline={deadline} sessStatus={sessStatus} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
           onGoMenu={rid => { setActiveRid(rid); setScreen('menu') }}
           onSubmit={submitOrder} submitting={submitting} submitError={submitError}
           onDrinkAdd={addD} onDrinkSub={subD}
@@ -255,7 +259,7 @@ export default function UserApp() {
       {screen==='submitted' && (
         <SubmittedScreen
           sessionId={sessionId} userName={userName} allOrders={allOrders}
-          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline}
+          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
           onGoSummary={() => setScreen('summary')} onEditOrder={startEditing}
         />
       )}
@@ -263,7 +267,7 @@ export default function UserApp() {
       {screen==='summary' && (
         <SummaryScreen
           sessionId={sessionId} allOrders={allOrders} delivery={delivery}
-          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline}
+          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
           onBack={() => setScreen('submitted')} onEditOrder={startEditing}
         />
       )}

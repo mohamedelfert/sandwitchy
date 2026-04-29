@@ -108,7 +108,7 @@ function getPerPersonDelivery(delivery, orders) {
 }
 
 function createEmptyPayload() {
-  return { orders: {}, delivery: 0, status: 'open', deadline: null, expected: [] }
+  return { orders: {}, delivery: 0, status: 'open', deadline: null, expected: [], title: '', announcement: '' }
 }
 
 function toBase64Url(value) {
@@ -224,6 +224,8 @@ try {
       delivery REAL DEFAULT 0,
       status TEXT DEFAULT 'open',
       deadline TEXT DEFAULT NULL,
+      title TEXT DEFAULT '',
+      announcement TEXT DEFAULT '',
       created INTEGER DEFAULT (unixepoch())
     );
     CREATE TABLE IF NOT EXISTS orders (
@@ -266,6 +268,8 @@ try {
   try { db.exec("ALTER TABLE orders ADD COLUMN paid INTEGER DEFAULT 0") } catch (_) {}
   try { db.exec("ALTER TABLE orders ADD COLUMN paid_at INTEGER DEFAULT NULL") } catch (_) {}
   try { db.exec("ALTER TABLE orders ADD COLUMN paid_amount REAL DEFAULT NULL") } catch (_) {}
+  try { db.exec("ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''") } catch (_) {}
+  try { db.exec("ALTER TABLE sessions ADD COLUMN announcement TEXT DEFAULT ''") } catch (_) {}
 
   const seedSetting = (key, value) => {
     const row = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get(key)
@@ -291,6 +295,8 @@ function getMemSession(sid, create = true) {
       delivery: 0,
       status: 'open',
       deadline: null,
+      title: '',
+      announcement: '',
       expectedMembers: [],
       created: getNow(),
     }
@@ -320,20 +326,22 @@ function updateSettingValue(key, value) {
 function getSession(sid, { create = true } = {}) {
   if (!db) {
     const mem = getMemSession(sid, create)
-    return mem ? { sid, delivery: mem.delivery, status: mem.status, deadline: mem.deadline, created: mem.created } : null
+    return mem ? { sid, delivery: mem.delivery, status: mem.status, deadline: mem.deadline, title: mem.title || '', announcement: mem.announcement || '', created: mem.created } : null
   }
 
   const row = db.prepare('SELECT * FROM sessions WHERE sid=?').get(sid)
   if (!row) {
     if (!create) return null
     db.prepare('INSERT OR IGNORE INTO sessions (sid) VALUES (?)').run(sid)
-    return { sid, delivery: 0, status: 'open', deadline: null, created: getNow() }
+    return { sid, delivery: 0, status: 'open', deadline: null, title: '', announcement: '', created: getNow() }
   }
   return {
     sid: row.sid,
     delivery: row.delivery || 0,
     status: row.status || 'open',
     deadline: row.deadline || null,
+    title: row.title || '',
+    announcement: row.announcement || '',
     created: normalizeTs(row.created),
   }
 }
@@ -469,6 +477,17 @@ function setDeadline(sid, deadline) {
   db.prepare('UPDATE sessions SET deadline=? WHERE sid=?').run(deadline, sid)
 }
 
+function setSessionMeta(sid, { title, announcement }) {
+  if (!db) {
+    const session = getMemSession(sid)
+    session.title = title
+    session.announcement = announcement
+    return
+  }
+  db.prepare('INSERT OR IGNORE INTO sessions (sid) VALUES (?)').run(sid)
+  db.prepare('UPDATE sessions SET title=?, announcement=? WHERE sid=?').run(title, announcement, sid)
+}
+
 function getExpected(sid) {
   if (!db) {
     const mem = getMemSession(sid, false)
@@ -552,6 +571,8 @@ function buildPayload(sid, create = true) {
     status: session?.status || 'open',
     deadline: session?.deadline || null,
     expected: getExpected(sid),
+    title: session?.title || '',
+    announcement: session?.announcement || '',
   }
 }
 
@@ -600,6 +621,8 @@ function buildSessionSummary(sid) {
     sid,
     status: payload.status || 'open',
     deadline: payload.deadline || null,
+    title: payload.title || '',
+    announcement: payload.announcement || '',
     delivery,
     count: orders.length,
     itemsTotal,
@@ -618,7 +641,7 @@ function getPublicActiveSessions() {
   return getSessionIds({ openOnly: true })
     .map(sid => buildSessionSummary(sid))
     .filter(session => session.count > 0)
-    .map(session => ({ sid: session.sid, count: session.count }))
+    .map(session => ({ sid: session.sid, count: session.count, title: session.title || '' }))
 }
 
 function getAdminSessionSummaries() {
@@ -903,15 +926,6 @@ app.put('/api/session/:sid/complete', requireAdmin, (req, res) => {
   res.json({ ok: true })
 })
 
-app.put('/api/session/:sid/complete-public', (req, res) => {
-  const { sid } = req.params
-  setStatus(sid, 'complete')
-  broadcast(sid)
-  console.log(`[done]   ${sid}`)
-  fireN8nWebhook(sid)
-  res.json({ ok: true })
-})
-
 app.put('/api/session/:sid/reopen', requireAdmin, (req, res) => {
   setStatus(req.params.sid, 'open')
   broadcast(req.params.sid)
@@ -923,6 +937,14 @@ app.put('/api/session/:sid/deadline', requireAdmin, (req, res) => {
   setDeadline(req.params.sid, deadline)
   broadcast(req.params.sid)
   console.log(`[deadline] ${req.params.sid} → ${deadline}`)
+  res.json({ ok: true })
+})
+
+app.put('/api/session/:sid/meta', requireAdmin, (req, res) => {
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, 120) : ''
+  const announcement = typeof req.body?.announcement === 'string' ? req.body.announcement.trim().slice(0, 500) : ''
+  setSessionMeta(req.params.sid, { title, announcement })
+  broadcast(req.params.sid)
   res.json({ ok: true })
 })
 
@@ -938,12 +960,6 @@ app.put('/api/session/:sid/expected', requireAdmin, (req, res) => {
 app.delete('/api/session/:sid', requireAdmin, (req, res) => {
   deleteSession(req.params.sid)
   broadcast(req.params.sid, false)
-  console.log(`[reset]  ${req.params.sid}`)
-  res.json({ ok: true })
-})
-
-app.delete('/api/session/:sid/public', (req, res) => {
-  deleteSession(req.params.sid)
   console.log(`[reset]  ${req.params.sid}`)
   res.json({ ok: true })
 })

@@ -4,7 +4,7 @@ import { C, FONT } from '../constants/colors.js'
 import { BREAD } from '../constants/data.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 
-export default function SubmittedScreen({ sessionId, userName, allOrders, sessStatus, myOrder, onGoSummary, onEditOrder }) {
+export default function SubmittedScreen({ sessionId, userName, allOrders, sessStatus, myOrder, sessionTitle = '', announcement = '', expected = [], onGoSummary, onEditOrder }) {
   const [copied, setCopied] = useState('')
 
   const orderLink = () => { const u = new URL(window.location.origin); u.searchParams.set('s', sessionId); return u.toString() }
@@ -17,6 +17,8 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
 
   const orders   = Object.values(allOrders)
   const isLocked = sessStatus === 'complete'
+  const expectedCount = expected.length
+  const progress = expectedCount > 0 ? Math.min(100, (orders.length / expectedCount) * 100) : 0
 
   return (
     <div style={{ minHeight:'100vh', paddingBottom:50 }} className="animate-fade-in">
@@ -31,11 +33,31 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
         <div style={{ background: 'rgba(255,255,255,0.2)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle2 size={48} />
         </div>
+        {sessionTitle && <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>{sessionTitle}</div>}
         <h1 style={{ fontSize:28, fontWeight:950, marginBottom: 8 }}>تم استلام طلبك!</h1>
         <p style={{ fontSize:15, color:'rgba(255,255,255,0.9)', fontWeight:600 }}>طلب {userName} اتسجل بنجاح ✓</p>
       </div>
 
       <div style={{ padding:'24px 18px', maxWidth: 900, margin:'0 auto' }}>
+        {announcement && (
+          <div className="glass-card" style={{ padding:'14px 16px', marginBottom:20, border:`1px solid ${C.primary}22`, background:`${C.primary}08` }}>
+            <div style={{ fontSize:12, color:C.primary, fontWeight:900, marginBottom:6 }}>إعلان من المنسق</div>
+            <div style={{ fontSize:14, color:C.dark, fontWeight:700, whiteSpace:'pre-wrap' }}>{announcement}</div>
+          </div>
+        )}
+
+        {expectedCount > 0 && (
+          <div className="glass-card" style={{ padding:'14px 16px', marginBottom:20 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:10 }}>
+              <div style={{ fontSize:14, fontWeight:900, color:C.dark }}>تقدم الطلبات</div>
+              <div style={{ fontSize:12, fontWeight:800, color:C.primary }}>{orders.length} / {expectedCount}</div>
+            </div>
+            <div style={{ height:10, background:C.tag, borderRadius:999, overflow:'hidden' }}>
+              <div style={{ width:`${progress}%`, height:'100%', background:C.grad, borderRadius:999 }} />
+            </div>
+          </div>
+        )}
+
         <div className="orders-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 24, alignItems: 'start' }}>
           
           <div>

@@ -92,7 +92,10 @@ export default function WelcomeScreen({ onStart, onExit }) {
                   onMouseEnter={e => e.currentTarget.style.background = C.primaryLight}
                   onMouseLeave={e => e.currentTarget.style.background = C.tag}
                 >
-                  <div style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>{sess.sid}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: C.dark }}>{sess.sid}</div>
+                    {sess.title && <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginTop: 4 }}>{sess.title}</div>}
+                  </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, background: '#FFF', padding: '4px 10px', borderRadius: 12, border: `1px solid ${C.primary}33` }}>
                     {sess.count} أشخاص يطلبون
                   </div>
