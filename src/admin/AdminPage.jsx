@@ -1033,13 +1033,10 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div style={{ fontSize:15, fontWeight:900, color:C.dark, marginTop:4 }}>📊 الملخص المجمع</div>
+<div style={{ fontSize:15, fontWeight:900, color:C.dark, marginTop:4 }}>📊 الملخص المجمع</div>
             <CombinedTotals allOrders={allOrders} breadTypes={breadTypes}/>
           </div>
-        </div>
-      </div>
-
-      {showQR && <QRModal url={orderLink(sid)} onClose={() => setShowQR(false)}/>}
+        )}
 
       {showExpected && (
         <Modal title="قائمة الأشخاص" onClose={() => setShowExpected(false)}>

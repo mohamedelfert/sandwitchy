@@ -85,7 +85,8 @@ export default function UserApp() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     const s = p.get('s')
-    if (s) { setSessionId(s); setScreen('name') }
+    const v = p.get('vote')
+    if (s) { setSessionId(s); setScreen(v === '1' ? 'vote' : 'name') }
     
     // Fetch settings (menu from API)
     api.getSettings().then(s => {
@@ -336,61 +337,6 @@ export default function UserApp() {
           sessionId={sessionId} allOrders={allOrders} delivery={delivery}
           rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
 onBack={() => setScreen('submitted')} onEditOrder={startEditing}
-        />
-      )}
-
-      {screen==='vote' && (
-        <VoteScreen
-          sessionId={sessionId} rests={rests}
-          onBack={() => setScreen('home')}
-        />
-      )}
-    </div>
-  )
-}
-             saveStoredTelegram(tg || '');
-             setPhoneUser(ph);
-             saveStoredPhone(ph);
-             repeatLastOrder() 
-           }}
-         />
-      )}
-
-      {screen==='home' && (
-        <HomeScreen
-          userName={userName} sessionId={sessionId} rests={rests} setRests={setRests}
-          lines={lines} drinks={drinks} drinkTypes={drinkTypes} allOrders={allOrders} isEditing={isEditing}
-          deadline={deadline} sessStatus={sessStatus} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
-          onGoMenu={rid => { setActiveRid(rid); setScreen('menu') }}
-          onSubmit={submitOrder} submitting={submitting} submitError={submitError}
-          onDrinkAdd={addD} onDrinkSub={subD}
-          onCancelEdit={() => { setIsEditing(false); setLines([]); setDrinks({}); setNotes({}); setScreen('submitted') }}
-        />
-      )}
-
-      {screen==='menu' && activeRest && (
-        <MenuScreen
-          activeRest={activeRest} lines={lines} notes={notes} totalItems={totalItems}
-          breadTypes={breadTypes}
-          onBack={() => setScreen('home')}
-          onAddL={addL} onSubL={subL} onUpdatePrice={handleUpdatePrice}
-          onAddItem={handleAddItem} onSetNote={setNote}
-        />
-      )}
-
-      {screen==='submitted' && (
-        <SubmittedScreen
-          sessionId={sessionId} userName={userName} allOrders={allOrders}
-          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} delivery={delivery} breadTypes={breadTypes} rests={rests} restaurantStatuses={restaurantStatuses}
-          onGoSummary={() => setScreen('summary')} onEditOrder={startEditing}
-        />
-      )}
-
-      {screen==='summary' && (
-        <SummaryScreen
-          sessionId={sessionId} allOrders={allOrders} delivery={delivery}
-          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
-          onBack={() => setScreen('submitted')} onEditOrder={startEditing}
         />
       )}
 
