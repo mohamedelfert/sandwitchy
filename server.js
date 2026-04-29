@@ -75,6 +75,45 @@ try {
     ]
     db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?)').run('bread_types', JSON.stringify(defaults))
   }
+
+  const hasRests = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get('rests')
+  if (!hasRests) {
+    const defaults = [
+      { id:1, name:'حماده الواحي', emoji:'🔥', bg:'#FFF0E8', hasBread:true, delivery:12, items:[
+        {id:'hw1',name:'طعمية',price:11},
+        {id:'hw2',name:'فول',price:10},
+        {id:'hw3',name:'فول سلطة',price:12},
+        {id:'hw4',name:'فول بالبيض',price:17},
+        {id:'hw5',name:'بطاطس صوابع كاتشب',price:14},
+        {id:'hw6',name:'بطاطس صوابع كاتشب ومايونيز',price:16},
+      ]},
+      { id:2, name:'بطاطس السعد', emoji:'🥔', bg:'#FFFAE8', hasBread:false, items:[
+        {id:'s1',name:'بطاطس سوري توابل',price:20},
+        {id:'s2',name:'بطاطس بلدي توابل',price:18},
+        {id:'s3',name:'بطاطس سوري توابل التميت',price:22},
+      ]},
+    ]
+    db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?)').run('rests', JSON.stringify(defaults))
+  }
+
+  const hasDrinks = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get('drinks')
+  if (!hasDrinks) {
+    const defaults = [
+      { id:'d1',  name:'شاي',               emoji:'🍵' },
+      { id:'d2',  name:'شاي بلبن',           emoji:'🍵' },
+      { id:'d3',  name:'قهوة سادة',          emoji:'☕' },
+      { id:'d4',  name:'قهوة مظبوط',         emoji:'☕' },
+      { id:'d5',  name:'قهوة مانو',          emoji:'☕' },
+      { id:'d6',  name:'قهوة باللبن',        emoji:'☕' },
+      { id:'d7',  name:'نسكافيه',            emoji:'☕' },
+      { id:'d8',  name:'نسكافيه باللبن',     emoji:'☕' },
+      { id:'d9',  name:'آيس كوفي',           emoji:'🧋' },
+      { id:'d10', name:'نعناع أخضر',         emoji:'🌿' },
+      { id:'d11', name:'ينسون',              emoji:'🌾' },
+      { id:'d12', name:'كركديه',             emoji:'🌺' },
+    ]
+    db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?)').run('drinks', JSON.stringify(defaults))
+  }
   console.log('[db]     SQLite ready →', dbPath)
 } catch (e) {
   console.warn('[db]     better-sqlite3 not available, using in-memory store:', e.message)
@@ -404,6 +443,35 @@ app.get('/api/settings', (req, res) => {
         { id: 'baladi', ar: 'عيش بلدي', color: '#B83A0A', light: '#FDEEE8' },
         { id: 'shamy',  ar: 'عيش شامي', color: '#6B2EA0', light: '#F2E8FF' },
         { id: 'souri',  ar: 'عيش سوري', color: '#0A7C5A', light: '#E4F5EF' },
+      ],
+      rests: [
+        { id:1, name:'حماده الواحي', emoji:'🔥', bg:'#FFF0E8', hasBread:true, delivery:12, items:[
+          {id:'hw1',name:'طعمية',price:11},
+          {id:'hw2',name:'فول',price:10},
+          {id:'hw3',name:'فول سلطة',price:12},
+          {id:'hw4',name:'فول بالبيض',price:17},
+          {id:'hw5',name:'بطاطس صوابع كاتشب',price:14},
+          {id:'hw6',name:'بطاطس صوابع كاتشب ومايونيز',price:16},
+        ]},
+        { id:2, name:'بطاطس السعد', emoji:'🥔', bg:'#FFFAE8', hasBread:false, items:[
+          {id:'s1',name:'بطاطس سوري توابل',price:20},
+          {id:'s2',name:'بطاطس بلدي توابل',price:18},
+          {id:'s3',name:'بطاطس سوري توابل التميت',price:22},
+        ]},
+      ],
+      drinks: [
+        { id:'d1',  name:'شاي',               emoji:'🍵' },
+        { id:'d2',  name:'شاي بلبن',           emoji:'🍵' },
+        { id:'d3',  name:'قهوة سادة',          emoji:'☕' },
+        { id:'d4',  name:'قهوة مظبوط',         emoji:'☕' },
+        { id:'d5',  name:'قهوة مانو',          emoji:'☕' },
+        { id:'d6',  name:'قهوة باللبن',        emoji:'☕' },
+        { id:'d7',  name:'نسكافيه',            emoji:'☕' },
+        { id:'d8',  name:'نسكافيه باللبن',     emoji:'☕' },
+        { id:'d9',  name:'آيس كوفي',           emoji:'🧋' },
+        { id:'d10', name:'نعناع أخضر',         emoji:'🌿' },
+        { id:'d11', name:'ينسون',              emoji:'🌾' },
+        { id:'d12', name:'كركديه',             emoji:'🌺' },
       ]
     })
   }

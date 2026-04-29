@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RotateCcw, User, AtSign, ArrowRight, History, ChevronDown } from 'lucide-react'
+import { RotateCcw, User, AtSign, ArrowRight, History, ChevronDown, ArrowLeft } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { inpSt } from '../utils/helpers.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
@@ -49,6 +49,9 @@ export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepea
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }} className="animate-fade-in">
+      <button onClick={() => window.history.back()} style={{ position:'absolute', top:20, left:20, background:C.tag, border:'none', borderRadius:12, width:40, height:40, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <ArrowLeft size={20} color={C.primary}/>
+      </button>
       <div style={{ width:'100%', maxWidth:400 }} className="glass-card">
         <div style={{ padding: '32px 24px' }}>
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:24 }}>

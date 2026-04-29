@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Copy, Check, Users, ShoppingBag, Coffee, ArrowRight, X } from 'lucide-react'
+import { Plus, Copy, Check, Users, ShoppingBag, Coffee, ArrowRight, X, ArrowLeft } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { DRINKS, EMOJIS } from '../constants/data.js'
 import { inpSt } from '../utils/helpers.js'
@@ -33,10 +33,15 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
       <div className="glass-header" style={{ padding:'16px 18px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
           <div style={{ fontSize:22, fontWeight:950, color:C.dark, letterSpacing:-0.5 }}>ساندوتشي</div>
-          <GhostBtn onClick={()=>copyText(orderLink(),'link')} style={{ padding:'8px 14px', borderRadius: 12 }}>
-            {copied==='link'?<Check size={16} color={C.green}/>:<Copy size={16}/>}
-            <span style={{ fontSize:13, fontWeight:700 }}>{copied==='link'?'تم النسخ!':'شارك الرابط'}</span>
-          </GhostBtn>
+          <div style={{ display:'flex', gap: 8 }}>
+            <GhostBtn onClick={() => window.history.back()} style={{ padding:'8px 14px', borderRadius: 12 }}>
+              <ArrowLeft size={16}/>
+            </GhostBtn>
+            <GhostBtn onClick={()=>copyText(orderLink(),'link')} style={{ padding:'8px 14px', borderRadius: 12 }}>
+              {copied==='link'?<Check size={16} color={C.green}/>:<Copy size={16}/>}
+              <span style={{ fontSize:13, fontWeight:700 }}>{copied==='link'?'تم':'شارك'}</span>
+            </GhostBtn>
+          </div>
         </div>
         
         <div style={{ background: C.grad, borderRadius:16, padding:'12px 16px', display:'flex', alignItems:'center', gap:12, boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>

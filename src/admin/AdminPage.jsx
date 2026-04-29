@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   ShieldCheck, CheckCircle, RotateCcw, Trash2, Edit3,
-  Copy, Check, Truck, Eye, Share2, X, Clock, Users, Printer, QrCode, ArrowLeft, Bell, MessageCircle, Settings
+  Copy, Check, Truck, Eye, Share2, X, Clock, Users, Printer, QrCode, ArrowLeft, Bell, MessageCircle, Settings, Plus, Save, Utensils, Coffee
 } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { DRINKS, BREAD } from '../constants/data.js'
@@ -66,7 +66,10 @@ export default function AdminPage() {
   const [deadline,      setDeadlineState] = useState(null)
   const [expected,      setExpectedState] = useState([])
   const [breadTypes,    setBreadTypes]    = useState([])
+  const [rests,       setRests]       = useState([])
+  const [drinks,      setDrinks]      = useState([])
   const [showSettings,  setShowSettings]  = useState(false)
+  const [menuTab,      setMenuTab]        = useState('rests')
   const [newBread,      setNewBread]      = useState({ ar: '', color: '#B83A0A' })
   const [copied,        setCopied]        = useState('')
   const [editOrder,     setEditOrder]     = useState(null)
@@ -107,6 +110,8 @@ export default function AdminPage() {
     connect()
     api.getSettings().then(s => {
       if (s.bread_types) setBreadTypes(s.bread_types)
+      if (s.rests) setRests(s.rests)
+      if (s.drinks) setDrinks(s.drinks)
     })
     return () => evtRef.current?.close()
   }, [sid])
@@ -184,6 +189,18 @@ export default function AdminPage() {
   const removeBreadType = (id) => {
     const newList = breadTypes.filter(b => b.id !== id)
     saveBreadSettings(newList)
+  }
+
+  const saveMenuSettings = async (key, value) => {
+    if (key === 'rests') setRests(value)
+    if (key === 'drinks') setDrinks(value)
+    await api.updateSettings(key, value)
+  }
+
+  const updateRest = (idx, field, val) => {
+    const nr = rests.map((r, i) => i === idx ? { ...r, [field]: val } : r)
+    setRests(nr)
+    saveMenuSettings('rests', nr)
   }
 
   const orders    = Object.entries(allOrders).sort(([,a],[,b]) => a.submittedAt - b.submittedAt)
@@ -436,36 +453,96 @@ export default function AdminPage() {
         </Modal>
       )}
       {showSettings && (
-        <Modal title="إعدادات أنواع العيش" onClose={()=>setShowSettings(false)}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, fontWeight: 700 }}>الأنواع الموجودة:</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {breadTypes.map(b => (
-                <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.tag, padding: '8px 12px', borderRadius: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 6, background: b.color }}></div>
-                    <span style={{ fontWeight: 800, fontSize: 14 }}>{b.ar}</span>
+        <Modal title="الإعدادات" onClose={()=>setShowSettings(false)} wide>
+          <div style={{ display:'flex', gap: 12, marginBottom: 20 }}>
+            <button onClick={()=>setMenuTab('bread')} style={{ flex:1, padding: 12, background: menuTab==='bread'?C.primary:C.tag, color: menuTab==='bread'?'#FFF':C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>العيش</button>
+            <button onClick={()=>setMenuTab('rests')} style={{ flex:1, padding: 12, background: menuTab==='rests'?C.primary:C.tag, color: menuTab==='rests'?'#FFF':C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>المطاعم</button>
+            <button onClick={()=>setMenuTab('drinks')} style={{ flex:1, padding: 12, background: menuTab==='drinks'?C.primary:C.tag, color: menuTab==='drinks'?'#FFF':C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>المشروبات</button>
+          </div>
+
+          {menuTab==='bread' && (
+            <div>
+              <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, fontWeight: 700 }}>الأنواع الموجودة:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                {breadTypes.map(b => (
+                  <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.tag, padding: '8px 12px', borderRadius: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: 6, background: b.color }}></div>
+                      <span style={{ fontWeight: 800, fontSize: 14 }}>{b.ar}</span>
+                    </div>
+                    <button onClick={() => removeBreadType(b.id)} style={{ border: 'none', background: 'none', color: C.red, cursor: 'pointer', padding: 4 }}>
+                      <Trash2 size={16}/>
+                    </button>
                   </div>
-                  <button onClick={() => removeBreadType(b.id)} style={{ border: 'none', background: 'none', color: C.red, cursor: 'pointer', padding: 4 }}>
-                    <Trash2 size={16}/>
-                  </button>
+                ))}
+              </div>
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, fontWeight: 700 }}>أضف نوع جديد:</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                   <input type="text" placeholder="مثلاً: عيش فينو" value={newBread.ar} 
+                     onChange={e => setNewBread(p => ({ ...p, ar: e.target.value }))}
+                     style={{ ...inpSt({ flex: 1 }), height: 44 }} />
+                   <input type="color" value={newBread.color} 
+                     onChange={e => setNewBread(p => ({ ...p, color: e.target.value }))}
+                     style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }} />
                 </div>
-              ))}
+                <Btn onClick={addBreadType} style={{ width: '100%', height: 44 }}>+ إضافة النوع</Btn>
+              </div>
             </div>
-          </div>
-          
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, fontWeight: 700 }}>أضف نوع جديد:</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-               <input type="text" placeholder="مثلاً: عيش فينو" value={newBread.ar} 
-                 onChange={e => setNewBread(p => ({ ...p, ar: e.target.value }))}
-                 style={{ ...inpSt({ flex: 1 }), height: 44 }} />
-               <input type="color" value={newBread.color} 
-                 onChange={e => setNewBread(p => ({ ...p, color: e.target.value }))}
-                 style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }} />
+          )}
+
+          {menuTab==='rests' && (
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 400, overflowY: 'auto' }}>
+                {rests.map((r, ri) => (
+                  <div key={r.id} style={{ background: C.tag, borderRadius: 12, padding: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input type="text" value={r.name} onChange={e => updateRest(ri, 'name', e.target.value)} style={{ ...inpSt({ flex:1 }) }} placeholder="اسم المطعم"/>
+                      <input type="number" value={r.delivery||0} onChange={e => updateRest(ri, 'delivery', parseFloat(e.target.value)||0)} style={{ ...inpSt({ width:60 }) }} placeholder="توصيل"/>
+                      <button onClick={() => { const nr = rests.filter((_,i)=>i!==ri); setRests(nr); saveMenuSettings('rests', nr) }} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:8, padding:8, cursor:'pointer' }}><Trash2 size={16}/></button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap:'wrap', gap: 6, marginBottom: 8 }}>
+                      {r.items?.map((it, ii) => (
+                        <div key={ii} style={{ display:'flex', alignItems:'center', gap:4, background:'#FFF', borderRadius:8, padding:'4px 8px' }}>
+                          <span style={{ fontSize:12, fontWeight:700 }}>{it.name}</span>
+                          <span style={{ fontSize:11, color:C.muted }}>{it.price}ج</span>
+                          <button onClick={() => { const nir = [...r.items]; nir.splice(ii,1); updateRest(ri, 'items', nir) }} style={{ border:'none', background:'none', color:C.red, cursor:'pointer' }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => { const ni = [...(r.items||[]), {id:`i${Date.now()}`,name:'',price:0}]; updateRest(ri, 'items', ni) }} style={{ fontSize:12, fontWeight:700, background:'none', border:'none', color:C.primary, cursor:'pointer' }}>+ إضافة صنف</button>
+                    {r.items?.map((it, ii) => (
+                      <div key={ii} style={{ display:'flex', gap:8, marginTop:4 }}>
+                        <input type="text" value={it.name} onChange={e => { const nir = [...r.items]; nir[ii] = {...nir[ii], name:e.target.value}; updateRest(ri, 'items', nir) }} style={{ ...inpSt({ flex:1, fontSize:13 }) }} placeholder="اسم الصنف"/>
+                        <input type="number" value={it.price} onChange={e => { const nir = [...r.items]; nir[ii] = {...nir[ii], price:parseFloat(e.target.value)||0}; updateRest(ri, 'items', nir) }} style={{ ...inpSt({ width:60, fontSize:13 }) }} placeholder="السعر"/>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <Btn onClick={() => { const nr = [...rests, {id:Date.now(), name:'', emoji:'🍽️', bg:'#FFF8E8', hasBread:true, delivery:10, items:[]}]; setRests(nr); saveMenuSettings('rests', nr) }} style={{ width:'100%', marginTop:16, height:44 }}>
+                <Plus size={16} style={{ marginLeft:8 }}/> إضافة مطعم
+              </Btn>
             </div>
-            <Btn onClick={addBreadType} style={{ width: '100%', height: 44 }}>+ إضافة النوع</Btn>
-          </div>
+          )}
+
+          {menuTab==='drinks' && (
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+                {drinks.map((d, di) => (
+                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.tag, padding: '8px 12px', borderRadius: 12 }}>
+                    <span style={{ fontSize:16 }}>{d.emoji}</span>
+                    <input type="text" value={d.name} onChange={e => { const nd = [...drinks]; nd[di] = {...nd[di], name:e.target.value}; setDrinks(nd); saveMenuSettings('drinks', nd) }} style={{ ...inpSt({ flex:1 }) }} placeholder="اسم المشروب"/>
+                    <input type="text" value={d.emoji} onChange={e => { const nd = [...drinks]; nd[di] = {...nd[di], emoji:e.target.value}; setDrinks(nd); saveMenuSettings('drinks', nd) }} style={{ ...inpSt({ width:40 }) }} />
+                    <button onClick={() => { const nd = drinks.filter((_,i)=>i!==di); setDrinks(nd); saveMenuSettings('drinks', nd) }} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:8, padding:8, cursor:'pointer' }}><Trash2 size={16}/></button>
+                  </div>
+                ))}
+              </div>
+              <Btn onClick={() => { const nd = [...drinks, {id:`d${Date.now()}`, name:'', emoji:'🍵'}]; setDrinks(nd); saveMenuSettings('drinks', nd) }} style={{ width:'100%', marginTop:16, height:44 }}>
+                <Plus size={16} style={{ marginLeft:8 }}/> إضافة مشروب
+              </Btn>
+            </div>
+          )}
         </Modal>
       )}
     </div>

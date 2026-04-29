@@ -64,9 +64,11 @@ export default function UserApp() {
     const s = p.get('s')
     if (s) { setSessionId(s); setScreen('name') }
     
-    // Fetch settings
+    // Fetch settings (menu from API)
     api.getSettings().then(s => {
       if (s.bread_types) setBreadTypes(s.bread_types)
+      if (s.rests) setRests(s.rests)
+      if (s.drinks) localStorage.setItem('sandwitchy_drinks', JSON.stringify(s.drinks))
     })
   }, [])
 
@@ -123,6 +125,16 @@ export default function UserApp() {
     url.searchParams.set('s', sid)
     window.history.replaceState({}, '', url)
     setScreen('name')
+  }
+
+  const goBack = () => {
+    if (sessionId) {
+      const url = new URL(window.location.origin)
+      url.searchParams.delete('s')
+      window.history.replaceState({}, '', url)
+    }
+    setSessionId(null)
+    setScreen('welcome')
   }
 
   // ── Load existing order for editing ──

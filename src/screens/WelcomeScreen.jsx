@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { PlusCircle, Link, ArrowRight, Activity } from 'lucide-react'
+import { PlusCircle, Link, ArrowRight, Activity, ArrowLeft, X } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { inpSt, genId } from '../utils/helpers.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import { api } from '../api/client.js'
 
-export default function WelcomeScreen({ onStart }) {
+export default function WelcomeScreen({ onStart, onExit }) {
   const [joinCode, setJoinCode] = useState('')
   const [activeSessions, setActiveSessions] = useState([])
 
@@ -21,7 +21,12 @@ export default function WelcomeScreen({ onStart }) {
         <div style={{ position:'absolute', bottom:-20, left:-20, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.05)' }}/>
         
         <div style={{ fontSize:72, marginBottom:16, filter:'drop-shadow(0 10px 15px rgba(0,0,0,0.1))' }}>🥪</div>
-        <h1 style={{ fontSize:42, fontWeight:950, color:'#FFF', letterSpacing:-1.5, lineHeight:1, marginBottom: 12 }}>ساندوتشي</h1>
+        <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginBottom:12 }}>
+          <h1 style={{ fontSize:42, fontWeight:950, color:'#FFF', letterSpacing:-1.5, lineHeight:1 }}>ساندوتشي</h1>
+          <button onClick={() => { const u = new URL(window.location.href); u.searchParams.delete('s'); window.history.replaceState({}, '', u); window.location.reload() }} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:10, width:32, height:32, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#FFF' }}>
+            <X size={18}/>
+          </button>
+        </div>
         <p style={{ fontSize:15, color:'rgba(255,255,255,0.9)', fontWeight:600, maxWidth: 300, margin: '0 auto' }}>
           اطلبوا أكلكوا سوا، والحساب علينا نطلعهولكم مظبوط!
         </p>

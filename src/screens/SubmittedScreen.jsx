@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Check, Eye, Users, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Copy, Check, Eye, Users, RefreshCw, CheckCircle2, ArrowRight, ArrowLeft, Home } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { BREAD } from '../constants/data.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
@@ -22,6 +22,12 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
     <div style={{ minHeight:'100vh', paddingBottom:50 }} className="animate-fade-in">
       {/* Success Header */}
       <div style={{ background:C.gradAdmin, padding:'60px 24px 40px', textAlign:'center', borderRadius: '0 0 32px 32px', boxShadow: '0 10px 30px rgba(16,185,129,0.2)', color: '#FFF' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20 }}>
+          <button onClick={() => window.history.back()} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:12, width:40, height:40, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#FFF' }}>
+            <ArrowLeft size={20}/>
+          </button>
+          <div style={{ width:40 }}/>
+        </div>
         <div style={{ background: 'rgba(255,255,255,0.2)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle2 size={48} />
         </div>
