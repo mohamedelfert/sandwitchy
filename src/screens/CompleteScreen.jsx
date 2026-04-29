@@ -2,8 +2,12 @@ import { CheckCircle2, Ticket, ArrowLeft } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { fmt } from '../utils/helpers.js'
 import CostCard from '../components/CostCard.jsx'
+import RestaurantStatusBoard from '../components/RestaurantStatusBoard.jsx'
+import { BREAD } from '../constants/data.js'
+import { downloadBlob } from '../utils/orders.js'
+import { generatePersonalReceipt } from '../utils/receipts.js'
 
-export default function CompleteScreen({ userName, allOrders, delivery, sessionTitle = '', announcement = '' }) {
+export default function CompleteScreen({ userName, allOrders, delivery, sessionTitle = '', announcement = '', sessionId = '', breadTypes = BREAD, rests = [], restaurantStatuses = {} }) {
   const numPeople = Object.keys(allOrders).length
   const perPerson = numPeople > 0 ? delivery / numPeople : 0
   const myOrder   = Object.values(allOrders).find(o => o.name === userName)
@@ -35,6 +39,8 @@ export default function CompleteScreen({ userName, allOrders, delivery, sessionT
             <div style={{ fontSize:14, color:C.dark, fontWeight:700, whiteSpace:'pre-wrap' }}>{announcement}</div>
           </div>
         )}
+
+        <RestaurantStatusBoard allOrders={allOrders} rests={rests} restaurantStatuses={restaurantStatuses} title="آخر حالة للمطاعم" />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
           
           {/* Your Total Card */}
@@ -49,6 +55,18 @@ export default function CompleteScreen({ userName, allOrders, delivery, sessionT
               <div style={{ fontSize:13, fontWeight:800, color: myOrder.paid ? C.green : C.red, marginTop: 14 }}>
                 {myOrder.paid ? 'تم تسجيل الدفع' : 'الدفع لسه غير متسجل'}
               </div>
+              {sessionId && (
+                <button
+                  onClick={() => downloadBlob(
+                    `receipt-${sessionId}-${userName}.txt`,
+                    generatePersonalReceipt({ sessionId, sessionTitle, order: myOrder, deliveryShare: perPerson, breadTypes }),
+                    'text/plain;charset=utf-8'
+                  )}
+                  style={{ marginTop:16, height:46, borderRadius:14, border:'none', background:C.dark, color:'#FFF', fontWeight:800, cursor:'pointer' }}
+                >
+                  تحميل إيصالك
+                </button>
+              )}
             </div>
           )}
 

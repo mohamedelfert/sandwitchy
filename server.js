@@ -15,6 +15,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456789'
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || `sandwitchy-${os.hostname()}-${process.pid}`
 const ADMIN_SESSION_TTL_MS = Number.parseInt(process.env.ADMIN_SESSION_TTL_MS || `${7 * 24 * 60 * 60 * 1000}`, 10)
 const ADMIN_COOKIE_NAME = 'sandwitchy_admin'
+const JWT_SECRET = process.env.JWT_SECRET || `sandwitchy-jwt-${os.hostname()}-${process.pid}`
+const JWT_TTL_MS = Number.parseInt(process.env.JWT_TTL_MS || `${30 * 24 * 60 * 60 * 1000}`, 10)
 const USING_DEFAULT_ADMIN_CREDENTIALS = !process.env.ADMIN_USERNAME && !process.env.ADMIN_PASSWORD
 
 const DEFAULT_BREAD_TYPES = [
@@ -31,6 +33,7 @@ const DEFAULT_RESTS = [
     bg: '#FFF0E8',
     hasBread: true,
     delivery: 12,
+    image: '',
     items: [
       { id: 'hw1', name: 'طعمية', price: 11 },
       { id: 'hw2', name: 'فول', price: 10 },
@@ -108,7 +111,7 @@ function getPerPersonDelivery(delivery, orders) {
 }
 
 function createEmptyPayload() {
-  return { orders: {}, delivery: 0, status: 'open', deadline: null, expected: [], title: '', announcement: '' }
+  return { orders: {}, delivery: 0, status: 'open', deadline: null, expected: [], title: '', announcement: '', restaurantStatuses: {} }
 }
 
 function toBase64Url(value) {
@@ -158,6 +161,43 @@ function verifyAdminToken(token) {
   } catch (_) {
     return null
   }
+}
+
+// JWT token helpers for user auth
+function createJwtToken(userId) {
+  const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const payload = toBase64Url(JSON.stringify({ 
+    sub: userId, 
+    exp: getNow() + JWT_TTL_MS,
+    iat: Math.floor(getNow() / 1000)
+  }))
+  const signature = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${payload}`).digest('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  return `${header}.${payload}.${signature}`
+}
+
+function verifyJwtToken(token) {
+  if (!token || typeof token !== 'string') return null
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  
+  const [header, payload, signature] = parts
+  const expected = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${payload}`).digest('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null
+  
+  try {
+    const parsed = JSON.parse(fromBase64Url(payload))
+    if (!parsed?.sub || !parsed?.exp || parsed.exp < getNow()) return null
+    return parsed
+  } catch (_) {
+    return null
+  }
+}
+
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password + JWT_SECRET).digest('hex')
 }
 
 function parseCookies(header = '') {
@@ -211,6 +251,13 @@ const memSettings = {
   drinks: deepClone(DEFAULT_DRINKS),
 }
 const memOrderHistory = []
+const memUsers = []
+const memAddresses = {}
+const memFavorites = []
+const memPromoCodes = []
+const memOrderStatus = []
+const memNotifications = []
+const memRestaurantHours = {}
 
 try {
   if (process.env.VERCEL) throw new Error('Vercel environment detected. Forcing in-memory store.')
@@ -226,6 +273,7 @@ try {
       deadline TEXT DEFAULT NULL,
       title TEXT DEFAULT '',
       announcement TEXT DEFAULT '',
+      restaurant_statuses TEXT DEFAULT '{}',
       created INTEGER DEFAULT (unixepoch())
     );
     CREATE TABLE IF NOT EXISTS orders (
@@ -248,6 +296,13 @@ try {
       name TEXT,
       PRIMARY KEY (sid, name)
     );
+    CREATE TABLE IF NOT EXISTS votes (
+      sid TEXT,
+      uid TEXT,
+      name TEXT,
+      rid INTEGER,
+      PRIMARY KEY (sid, uid)
+    );
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -261,15 +316,104 @@ try {
       drinks TEXT DEFAULT '{}',
       notes TEXT DEFAULT '{}'
     );
-  `)
-
-  try { db.exec("ALTER TABLE orders ADD COLUMN telegram TEXT DEFAULT ''") } catch (_) {}
-  try { db.exec("ALTER TABLE orders ADD COLUMN phone TEXT DEFAULT ''") } catch (_) {}
-  try { db.exec("ALTER TABLE orders ADD COLUMN paid INTEGER DEFAULT 0") } catch (_) {}
-  try { db.exec("ALTER TABLE orders ADD COLUMN paid_at INTEGER DEFAULT NULL") } catch (_) {}
-  try { db.exec("ALTER TABLE orders ADD COLUMN paid_amount REAL DEFAULT NULL") } catch (_) {}
-  try { db.exec("ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''") } catch (_) {}
-  try { db.exec("ALTER TABLE sessions ADD COLUMN announcement TEXT DEFAULT ''") } catch (_) {}
+   `)
+   
+   try { db.exec("ALTER TABLE orders ADD COLUMN telegram TEXT DEFAULT ''") } catch (_) {}
+   try { db.exec("ALTER TABLE orders ADD COLUMN phone TEXT DEFAULT ''") } catch (_) {}
+   try { db.exec("ALTER TABLE orders ADD COLUMN paid INTEGER DEFAULT 0") } catch (_) {}
+   try { db.exec("ALTER TABLE orders ADD COLUMN paid_at INTEGER DEFAULT NULL") } catch (_) {}
+   try { db.exec("ALTER TABLE orders ADD COLUMN paid_amount REAL DEFAULT NULL") } catch (_) {}
+   try { db.exec("ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''") } catch (_) {}
+   try { db.exec("ALTER TABLE sessions ADD COLUMN announcement TEXT DEFAULT ''") } catch (_) {}
+   try { db.exec("ALTER TABLE sessions ADD COLUMN restaurant_statuses TEXT DEFAULT '{}'") } catch (_) {}
+   
+   // New tables for enhanced features
+   try {
+     db.exec(`
+       CREATE TABLE IF NOT EXISTS users (
+         id TEXT PRIMARY KEY,
+         username TEXT UNIQUE NOT NULL,
+         password_hash TEXT NOT NULL,
+         phone TEXT DEFAULT '',
+         telegram TEXT DEFAULT '',
+         email TEXT DEFAULT '',
+         created_at INTEGER DEFAULT (unixepoch())
+       );
+       
+       CREATE TABLE IF NOT EXISTS user_addresses (
+         id TEXT PRIMARY KEY,
+         user_id TEXT NOT NULL,
+         label TEXT DEFAULT '',
+         address TEXT NOT NULL,
+         notes TEXT DEFAULT '',
+         is_default INTEGER DEFAULT 0,
+         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       );
+       
+       CREATE TABLE IF NOT EXISTS favorites (
+         id TEXT PRIMARY KEY,
+         user_id TEXT NOT NULL,
+         type TEXT NOT NULL,
+         data TEXT NOT NULL,
+         created_at INTEGER DEFAULT (unixepoch()),
+         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       );
+       
+       CREATE TABLE IF NOT EXISTS promo_codes (
+         code TEXT PRIMARY KEY,
+         discount_type TEXT NOT NULL,
+         value REAL NOT NULL,
+         min_amount REAL DEFAULT 0,
+         max_uses INTEGER DEFAULT NULL,
+         used_count INTEGER DEFAULT 0,
+         expires_at INTEGER DEFAULT NULL,
+         active INTEGER DEFAULT 1,
+         created_by TEXT,
+         created_at INTEGER DEFAULT (unixepoch())
+       );
+       
+       CREATE TABLE IF NOT EXISTS order_status_logs (
+         id TEXT PRIMARY KEY,
+         session_id TEXT NOT NULL,
+         order_id TEXT NOT NULL,
+         status TEXT NOT NULL,
+         note TEXT DEFAULT '',
+         created_at INTEGER DEFAULT (unixepoch())
+       );
+       
+       CREATE TABLE IF NOT EXISTS notifications (
+         id TEXT PRIMARY KEY,
+         user_id TEXT NOT NULL,
+         type TEXT NOT NULL,
+         title TEXT NOT NULL,
+         message TEXT NOT NULL,
+         read INTEGER DEFAULT 0,
+         action_url TEXT DEFAULT '',
+         created_at INTEGER DEFAULT (unixepoch()),
+         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       );
+       
+       CREATE TABLE IF NOT EXISTS restaurant_hours (
+         id TEXT PRIMARY KEY,
+         restaurant_id INTEGER NOT NULL,
+         day_of_week INTEGER NOT NULL,
+         open_time TEXT DEFAULT '00:00',
+         close_time TEXT DEFAULT '23:59',
+         closed INTEGER DEFAULT 0,
+         UNIQUE(restaurant_id, day_of_week)
+       );
+       
+       CREATE TABLE IF NOT EXISTS order_status (
+         session_id TEXT NOT NULL,
+         order_id TEXT NOT NULL,
+         status TEXT NOT NULL DEFAULT 'pending',
+         prepared_at INTEGER DEFAULT NULL,
+         ready_at INTEGER DEFAULT NULL,
+         delivered_at INTEGER DEFAULT NULL,
+         PRIMARY KEY (session_id, order_id)
+       );
+     `)
+   } catch (_) {}
 
   const seedSetting = (key, value) => {
     const row = db.prepare('SELECT 1 FROM app_settings WHERE key=?').get(key)
@@ -297,6 +441,7 @@ function getMemSession(sid, create = true) {
       deadline: null,
       title: '',
       announcement: '',
+      restaurantStatuses: {},
       expectedMembers: [],
       created: getNow(),
     }
@@ -323,17 +468,288 @@ function updateSettingValue(key, value) {
   `).run(key, JSON.stringify(value))
 }
 
+// User management functions
+function createUser(username, password, { phone = '', telegram = '', email = '' } = {}) {
+  const id = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  const password_hash = hashPassword(password)
+  
+  if (!db) {
+    if (!memUsers) memUsers = []
+    memUsers.push({ id, username, password_hash, phone, telegram, email, created_at: getNow() })
+    return { id, username, phone, telegram, email }
+  }
+  
+  try {
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, phone, telegram, email, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, username, password_hash, phone, telegram, email, getNow())
+    return { id, username, phone, telegram, email }
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint failed')) {
+      return null
+    }
+    throw err
+  }
+}
+
+function verifyUser(username, password) {
+  if (!db) {
+    if (!memUsers) return null
+    const user = memUsers.find(u => u.username === username)
+    if (!user) return null
+    if (user.password_hash !== hashPassword(password)) return null
+    return { id: user.id, username: user.username, phone: user.phone, telegram: user.telegram, email: user.email }
+  }
+  
+  const row = db.prepare('SELECT * FROM users WHERE username=?').get(username)
+  if (!row) return null
+  if (row.password_hash !== hashPassword(password)) return null
+  return { id: row.id, username: row.username, phone: row.phone, telegram: row.telegram, email: row.email }
+}
+
+function getUser(id) {
+  if (!db) {
+    if (!memUsers) return null
+    const user = memUsers.find(u => u.id === id)
+    if (!user) return null
+    return { id: user.id, username: user.username, phone: user.phone, telegram: user.telegram, email: user.email }
+  }
+  
+  const row = db.prepare('SELECT id, username, phone, telegram, email, created_at FROM users WHERE id=?').get(id)
+  if (!row) return null
+  return { id: row.id, username: row.username, phone: row.phone, telegram: row.telegram, email: row.email, created_at: row.created_at }
+}
+
+function getUserByUsername(username) {
+  if (!db) {
+    if (!memUsers) return null
+    const user = memUsers.find(u => u.username === username)
+    if (!user) return null
+    return { id: user.id, username: user.username }
+  }
+  
+  const row = db.prepare('SELECT id, username FROM users WHERE username=?').get(username)
+  if (!row) return null
+  return { id: row.id, username: row.username }
+}
+
+// User addresses
+function getUserAddresses(userId) {
+  if (!db) {
+    if (!memAddresses) return []
+    return (memAddresses[userId] || []).map(a => ({ ...a }))
+  }
+  
+  return db.prepare('SELECT * FROM user_addresses WHERE user_id=? ORDER BY is_default DESC, created_at DESC').all(userId)
+}
+
+function addUserAddress(userId, { id, label, address, notes, is_default }) {
+  const addrId = id || `addr_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  
+  if (!db) {
+    if (!memAddresses) memAddresses = {}
+    if (!memAddresses[userId]) memAddresses[userId] = []
+    memAddresses[userId].push({ id: addrId, user_id: userId, label, address, notes, is_default: is_default ? 1 : 0 })
+    return addrId
+  }
+  
+  db.prepare(`
+    INSERT INTO user_addresses (id, user_id, label, address, notes, is_default)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(addrId, userId, label || '', address, notes || '', is_default ? 1 : 0)
+  
+  if (is_default) {
+    db.prepare('UPDATE user_addresses SET is_default=0 WHERE user_id=? AND id!=?').run(userId, addrId)
+  }
+  
+  return addrId
+}
+
+// Favorites
+function addFavorite(userId, type, data) {
+  const id = `fav_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  
+  if (!db) {
+    if (!memFavorites) memFavorites = []
+    memFavorites.push({ id, user_id: userId, type, data: JSON.stringify(data), created_at: getNow() })
+    return id
+  }
+  
+  db.prepare(`
+    INSERT INTO favorites (id, user_id, type, data, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, userId, type, JSON.stringify(data), getNow())
+  return id
+}
+
+function getUserFavorites(userId, type = null) {
+  if (!db) {
+    if (!memFavorites) return []
+    const favs = (memFavorites || []).filter(f => f.user_id === userId && (!type || f.type === type))
+    return favs.map(f => ({ id: f.id, type: f.type, data: JSON.parse(f.data || '{}'), created_at: f.created_at }))
+  }
+  
+  if (type) {
+    return db.prepare('SELECT * FROM favorites WHERE user_id=? AND type=? ORDER BY created_at DESC').all(userId, type)
+  }
+  return db.prepare('SELECT * FROM favorites WHERE user_id=? ORDER BY created_at DESC').all(userId)
+}
+
+function removeFavorite(userId, favId) {
+  if (!db) {
+    if (memFavorites) memFavorites = memFavorites.filter(f => !(f.user_id === userId && f.id === favId))
+    return
+  }
+  db.prepare('DELETE FROM favorites WHERE user_id=? AND id=?').run(userId, favId)
+}
+
+// Promo codes
+function validatePromoCode(code, totalAmount) {
+  if (!db) {
+    if (!memPromoCodes) return null
+    const promo = memPromoCodes.find(p => p.code === code && p.active)
+    if (!promo) return null
+    if (promo.expires_at && promo.expires_at < getNow()) return null
+    if (promo.max_uses && promo.used_count >= promo.max_uses) return null
+    if (totalAmount < (promo.min_amount || 0)) return { valid: false, error: 'Minimum order amount not met' }
+    return { valid: true, promo }
+  }
+  
+  const row = db.prepare('SELECT * FROM promo_codes WHERE code=? AND active=1').get(code)
+  if (!row) return { valid: false, error: 'Invalid promo code' }
+  if (row.expires_at && row.expires_at < getNow()) return { valid: false, error: 'Promo expired' }
+  if (row.max_uses && row.used_count >= row.max_uses) return { valid: false, error: 'Promo used max times' }
+  if (totalAmount < (row.min_amount || 0)) return { valid: false, error: 'Minimum order amount not met' }
+  return { valid: true, promo: row }
+}
+
+function applyPromoCode(code, sessionId, userId) {
+  const validation = validatePromoCode(code, 0) // Will be validated with actual amount later
+  if (!validation.valid) return validation
+  
+  if (!db) {
+    const promo = memPromoCodes.find(p => p.code === code)
+    if (promo) {
+      promo.used_count = (promo.used_count || 0) + 1
+    }
+    return { success: true, discount: validation.promo.value, discount_type: validation.promo.discount_type }
+  }
+  
+  db.prepare('UPDATE promo_codes SET used_count = used_count + 1 WHERE code=?').run(code)
+  return { success: true, discount: validation.promo.value, discount_type: validation.promo.discount_type }
+}
+
+// Order status tracking
+function setOrderStatus(sid, uid, status, note = '') {
+  const statusId = `status_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  
+  if (!db) {
+    if (!memOrderStatus) memOrderStatus = []
+    memOrderStatus.push({ sid, uid, status, note, created_at: getNow(), id: statusId })
+    return statusId
+  }
+  
+  db.prepare(`
+    INSERT INTO order_status_logs (id, session_id, order_id, status, note, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(statusId, sid, uid, status, note, getNow())
+  
+  // Update the current status in a separate table/query if needed
+  return statusId
+}
+
+function getOrderStatusHistory(sid, uid) {
+  if (!db) {
+    if (!memOrderStatus) return []
+    return (memOrderStatus || []).filter(s => s.sid === sid && s.uid === uid).sort((a,b) => (a.created_at||0) - (b.created_at||0))
+  }
+  
+  return db.prepare('SELECT * FROM order_status_logs WHERE session_id=? AND order_id=? ORDER BY created_at ASC').all(sid, uid)
+}
+
+// Notifications
+function createNotification(userId, type, title, message, actionUrl = '') {
+  const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  
+  if (!db) {
+    if (!memNotifications) memNotifications = []
+    memNotifications.push({ id, user_id: userId, type, title, message, read: 0, action_url: actionUrl, created_at: getNow() })
+    return id
+  }
+  
+  db.prepare(`
+    INSERT INTO notifications (id, user_id, type, title, message, action_url, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, userId, type, title, message, actionUrl, getNow())
+  return id
+}
+
+function getUserNotifications(userId, unreadOnly = false) {
+  if (!db) {
+    if (!memNotifications) return []
+    let notifs = (memNotifications || []).filter(n => n.user_id === userId)
+    if (unreadOnly) notifs = notifs.filter(n => !n.read)
+    return notifs.sort((a,b) => (b.created_at||0) - (a.created_at||0))
+  }
+  
+  if (unreadOnly) {
+    return db.prepare('SELECT * FROM notifications WHERE user_id=? AND read=0 ORDER BY created_at DESC').all(userId)
+  }
+  return db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC').all(userId)
+}
+
+function markNotificationRead(userId, notifId) {
+  if (!db) {
+    if (memNotifications) {
+      const n = memNotifications.find(n => n.id === notifId && n.user_id === userId)
+      if (n) n.read = 1
+    }
+    return
+  }
+  db.prepare('UPDATE notifications SET read=1 WHERE id=? AND user_id=?').run(notifId, userId)
+}
+
+function markAllNotificationsRead(userId) {
+  if (!db) {
+    if (memNotifications) {
+      memNotifications.forEach(n => { if (n.user_id === userId) n.read = 1 })
+    }
+    return
+  }
+  db.prepare('UPDATE notifications SET read=1 WHERE user_id=?').run(userId)
+}
+
+// Restaurant hours
+function setRestaurantHours(restaurantId, hours) {
+  if (!db) {
+    if (!memRestaurantHours) memRestaurantHours = {}
+    memRestaurantHours[restaurantId] = hours
+    return
+  }
+  
+  const del = db.prepare('DELETE FROM restaurant_hours WHERE restaurant_id=?')
+  const ins = db.prepare('INSERT INTO restaurant_hours (id, restaurant_id, day_of_week, open_time, close_time, closed) VALUES (?, ?, ?, ?, ?, ?)')
+  
+  db.transaction(() => {
+    del.run(restaurantId)
+    hours.forEach(h => {
+      ins.run(`rh_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, restaurantId, h.day_of_week, h.open_time, h.close_time, h.closed ? 1 : 0)
+    })
+  })()
+}
+
 function getSession(sid, { create = true } = {}) {
   if (!db) {
     const mem = getMemSession(sid, create)
-    return mem ? { sid, delivery: mem.delivery, status: mem.status, deadline: mem.deadline, title: mem.title || '', announcement: mem.announcement || '', created: mem.created } : null
+    return mem ? { sid, delivery: mem.delivery, status: mem.status, deadline: mem.deadline, title: mem.title || '', announcement: mem.announcement || '', restaurantStatuses: deepClone(mem.restaurantStatuses || {}), created: mem.created } : null
   }
 
   const row = db.prepare('SELECT * FROM sessions WHERE sid=?').get(sid)
   if (!row) {
     if (!create) return null
     db.prepare('INSERT OR IGNORE INTO sessions (sid) VALUES (?)').run(sid)
-    return { sid, delivery: 0, status: 'open', deadline: null, title: '', announcement: '', created: getNow() }
+    return { sid, delivery: 0, status: 'open', deadline: null, title: '', announcement: '', restaurantStatuses: {}, created: getNow() }
   }
   return {
     sid: row.sid,
@@ -342,6 +758,7 @@ function getSession(sid, { create = true } = {}) {
     deadline: row.deadline || null,
     title: row.title || '',
     announcement: row.announcement || '',
+    restaurantStatuses: safeJsonParse(row.restaurant_statuses, {}),
     created: normalizeTs(row.created),
   }
 }
@@ -488,6 +905,16 @@ function setSessionMeta(sid, { title, announcement }) {
   db.prepare('UPDATE sessions SET title=?, announcement=? WHERE sid=?').run(title, announcement, sid)
 }
 
+function setRestaurantStatuses(sid, statuses) {
+  if (!db) {
+    const session = getMemSession(sid)
+    session.restaurantStatuses = deepClone(statuses)
+    return
+  }
+  db.prepare('INSERT OR IGNORE INTO sessions (sid) VALUES (?)').run(sid)
+  db.prepare('UPDATE sessions SET restaurant_statuses=? WHERE sid=?').run(JSON.stringify(statuses || {}), sid)
+}
+
 function getExpected(sid) {
   if (!db) {
     const mem = getMemSession(sid, false)
@@ -573,6 +1000,7 @@ function buildPayload(sid, create = true) {
     expected: getExpected(sid),
     title: session?.title || '',
     announcement: session?.announcement || '',
+    restaurantStatuses: session?.restaurantStatuses || {},
   }
 }
 
@@ -948,6 +1376,23 @@ app.put('/api/session/:sid/meta', requireAdmin, (req, res) => {
   res.json({ ok: true })
 })
 
+app.put('/api/session/:sid/restaurant-statuses', requireAdmin, (req, res) => {
+  const rawStatuses = req.body?.statuses && typeof req.body.statuses === 'object' ? req.body.statuses : {}
+  const statuses = Object.fromEntries(
+    Object.entries(rawStatuses).slice(0, 100).map(([restId, value]) => [
+      String(restId),
+      {
+        stage: typeof value?.stage === 'string' ? value.stage.slice(0, 32) : 'collecting',
+        note: typeof value?.note === 'string' ? value.note.trim().slice(0, 160) : '',
+        updatedAt: value?.updatedAt || getNow(),
+      },
+    ])
+  )
+  setRestaurantStatuses(req.params.sid, statuses)
+  broadcast(req.params.sid)
+  res.json({ ok: true })
+})
+
 app.put('/api/session/:sid/expected', requireAdmin, (req, res) => {
   const names = (req.body.names || [])
     .filter(name => typeof name === 'string' && name.trim())
@@ -979,6 +1424,29 @@ app.post('/api/settings', requireAdmin, (req, res) => {
   res.json({ ok: true })
 })
 
+function saveVote(sid, uid, name, rid) {
+  if (!db) return
+  db.prepare(`INSERT OR REPLACE INTO votes (sid, uid, name, rid) VALUES (?, ?, ?, ?)`).run(sid, uid, name, rid)
+}
+
+function getVotes(sid) {
+  if (!db) return []
+  const rows = db.prepare('SELECT rid, COUNT(*) as cnt FROM votes WHERE sid=? GROUP BY rid').all(sid)
+  return rows
+}
+
+app.get('/api/votes/:sid', (req, res) => {
+  res.json(getVotes(req.params.sid))
+})
+
+app.post('/api/votes/:sid', (req, res) => {
+  const { sid } = req.params
+  const { uid, name, rid } = req.body || {}
+  if (!sid || !uid || !name || rid == null) return res.status(400).json({ ok: false })
+  saveVote(sid, uid, name, rid)
+  res.json({ ok: true })
+})
+
 app.get('/api/history/:name', (req, res) => {
   const { name } = req.params
   if (!name || name.length > 80) return res.status(400).json([])
@@ -998,6 +1466,286 @@ app.post('/api/reorder/:hid', (req, res) => {
     lines: safeJsonParse(row.lines, []),
     drinks: safeJsonParse(row.drinks, {}),
     notes: safeJsonParse(row.notes, {}),
+  })
+})
+
+// ── User Authentication ───────────────────────────────────────────
+app.post('/api/auth/register', (req, res) => {
+  const { username, password, phone, telegram, email } = req.body || {}
+  if (!username || !password || username.length < 3 || username.length > 30 || password.length < 6) {
+    return res.status(400).json({ ok: false, error: 'Invalid credentials' })
+  }
+  
+  const user = createUser(username, password, { phone, telegram, email })
+  if (!user) return res.status(409).json({ ok: false, error: 'Username already exists' })
+  
+  const token = createJwtToken(user.id)
+  res.json({ ok: true, user: { id: user.id, username: user.username, phone: user.phone, telegram: user.telegram, email: user.email }, token })
+})
+
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {}
+  const user = verifyUser(username, password)
+  if (!user) return res.status(401).json({ ok: false, error: 'Invalid credentials' })
+  
+  const token = createJwtToken(user.id)
+  res.json({ ok: true, user: { id: user.id, username: user.username, phone: user.phone, telegram: user.telegram, email: user.email }, token })
+})
+
+function getUserAuth(req) {
+  const auth = req.headers.authorization || ''
+  const match = auth.match(/^Bearer (.+)$/)
+  if (!match) return null
+  return verifyJwtToken(match[1])
+}
+
+function requireAuth(req, res, next) {
+  const auth = getUserAuth(req)
+  if (!auth) return res.status(401).json({ ok: false, error: 'unauthorized' })
+  req.user = auth
+  next()
+}
+
+app.get('/api/auth/me', (req, res) => {
+  const auth = getUserAuth(req)
+  if (!auth) return res.status(200).json({ ok: true, user: null, loggedIn: false })
+  const user = getUser(auth.sub)
+  res.json({ ok: true, user, loggedIn: !!user })
+})
+
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ ok: true, message: 'Logged out (client should delete token)' })
+})
+
+// ── User Profile & Addresses ───────────────────────────────────────
+app.get('/api/users/me', requireAuth, (req, res) => {
+  const user = getUser(req.user.sub)
+  if (!user) return res.status(404).json({ ok: false })
+  const addresses = getUserAddresses(req.user.sub)
+  res.json({ ok: true, user: { ...user, addresses } })
+})
+
+app.put('/api/users/me', requireAuth, (req, res) => {
+  const { phone, telegram, email } = req.body || {}
+  if (!db) {
+    const userIdx = memUsers.findIndex(u => u.id === req.user.sub)
+    if (userIdx !== -1) {
+      if (phone !== undefined) memUsers[userIdx].phone = phone
+      if (telegram !== undefined) memUsers[userIdx].telegram = telegram
+      if (email !== undefined) memUsers[userIdx].email = email
+    }
+    return res.json({ ok: true })
+  }
+  
+  const updates = []
+  const values = []
+  if (phone !== undefined) { updates.push('phone=?'); values.push(phone) }
+  if (telegram !== undefined) { updates.push('telegram=?'); values.push(telegram) }
+  if (email !== undefined) { updates.push('email=?'); values.push(email) }
+  
+  if (updates.length > 0) {
+    values.push(req.user.sub)
+    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id=?`).run(...values)
+  }
+  res.json({ ok: true })
+})
+
+app.post('/api/addresses', requireAuth, (req, res) => {
+  const { label, address, notes, is_default } = req.body || {}
+  const id = addUserAddress(req.user.sub, { id: null, label, address, notes, is_default })
+  res.json({ ok: true, id })
+})
+
+app.put('/api/addresses/:id', requireAuth, (req, res) => {
+  const { label, address, notes, is_default } = req.body || {}
+  if (!db) {
+    // Implementation for in-memory
+    if (!memAddresses[req.user.sub]) return res.status(404).json({ ok: false })
+    const addrIdx = memAddresses[req.user.sub].findIndex(a => a.id === req.params.id)
+    if (addrIdx === -1) return res.status(404).json({ ok: false })
+    if (label !== undefined) memAddresses[req.user.sub][addrIdx].label = label
+    if (address !== undefined) memAddresses[req.user.sub][addrIdx].address = address
+    if (notes !== undefined) memAddresses[req.user.sub][addrIdx].notes = notes
+    if (is_default !== undefined) {
+      memAddresses[req.user.sub].forEach(a => a.is_default = 0)
+      memAddresses[req.user.sub][addrIdx].is_default = is_default ? 1 : 0
+    }
+    return res.json({ ok: true })
+  }
+  
+  const updates = []
+  const values = []
+  if (label !== undefined) { updates.push('label=?'); values.push(label) }
+  if (address !== undefined) { updates.push('address=?'); values.push(address) }
+  if (notes !== undefined) { updates.push('notes=?'); values.push(notes) }
+  if (is_default !== undefined) { 
+    db.prepare('UPDATE user_addresses SET is_default=0 WHERE user_id=?').run(req.user.sub)
+    updates.push('is_default=?'); values.push(is_default ? 1 : 0) 
+  }
+  
+  if (updates.length > 0) {
+    values.push(req.params.id, req.user.sub)
+    db.prepare(`UPDATE user_addresses SET ${updates.join(', ')} WHERE id=? AND user_id=?`).run(...values)
+  }
+  res.json({ ok: true })
+})
+
+app.delete('/api/addresses/:id', requireAuth, (req, res) => {
+  if (!db) {
+    if (memAddresses[req.user.sub]) {
+      memAddresses[req.user.sub] = memAddresses[req.user.sub].filter(a => a.id !== req.params.id)
+    }
+    return res.json({ ok: true })
+  }
+  db.prepare('DELETE FROM user_addresses WHERE id=? AND user_id=?').run(req.params.id, req.user.sub)
+  res.json({ ok: true })
+})
+
+// ── Favorites ───────────────────────────────────────────────────────
+app.get('/api/favorites', requireAuth, (req, res) => {
+  const { type } = req.query
+  const favs = getUserFavorites(req.user.sub, type)
+  res.json({ ok: true, favorites: favs })
+})
+
+app.post('/api/favorites', requireAuth, (req, res) => {
+  const { type, data } = req.body || {}
+  if (!type || !data) return res.status(400).json({ ok: false, error: 'Missing type or data' })
+  const id = addFavorite(req.user.sub, type, data)
+  res.json({ ok: true, id })
+})
+
+app.delete('/api/favorites/:id', requireAuth, (req, res) => {
+  removeFavorite(req.user.sub, req.params.id)
+  res.json({ ok: true })
+})
+
+// ── Promo Codes ─────────────────────────────────────────────────────
+app.post('/api/promo/validate', (req, res) => {
+  const { code, amount } = req.body || {}
+  if (!code) return res.status(400).json({ ok: false, error: 'Promo code required' })
+  const result = validatePromoCode(code, amount || 0)
+  if (!result.valid) return res.status(400).json({ ok: false, error: result.error })
+  res.json({ ok: true, discount: result.promo.value, discount_type: result.promo.discount_type, description: result.promo.description || '' })
+})
+
+// Admin only endpoints for promo code management
+app.get('/api/admin/promo-codes', requireAdmin, (req, res) => {
+  if (!db) return res.json({ ok: true, promos: memPromoCodes || [] })
+  const rows = db.prepare('SELECT * FROM promo_codes ORDER BY created_at DESC').all()
+  res.json({ ok: true, promos: rows })
+})
+
+app.post('/api/admin/promo-codes', requireAdmin, (req, res) => {
+  const { code, discount_type, value, min_amount, max_uses, expires_at, active } = req.body || {}
+  if (!code || !discount_type || !value) return res.status(400).json({ ok: false, error: 'Missing required fields' })
+  
+  if (!db) {
+    if (!memPromoCodes) memPromoCodes = []
+    memPromoCodes.push({ code, discount_type, value, min_amount, max_uses, used_count: 0, expires_at, active: active ? 1 : 1, created_by: req.admin.u, created_at: getNow() })
+    return res.json({ ok: true })
+  }
+  
+  try {
+    db.prepare(`
+      INSERT INTO promo_codes (code, discount_type, value, min_amount, max_uses, expires_at, active, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(code, discount_type, value, min_amount || 0, max_uses || null, expires_at || null, active ? 1 : 1, req.admin.u, getNow())
+  } catch (err) {
+    return res.status(409).json({ ok: false, error: 'Code already exists' })
+  }
+  res.json({ ok: true })
+})
+
+// ── Order Status Tracking ───────────────────────────────────────────
+app.put('/api/orders/:sid/:uid/status', requireAdmin, (req, res) => {
+  const { sid, uid } = req.params
+  const { status, note } = req.body || {}
+  if (!['pending', 'preparing', 'ready', 'delivered', 'cancelled'].includes(status)) {
+    return res.status(400).json({ ok: false, error: 'Invalid status' })
+  }
+  
+  const statusId = setOrderStatus(sid, uid, status, note || '')
+  
+  // Send notification to user if status changes
+  const order = getOrders(sid)[uid]
+  if (order) {
+    createNotification(
+      `user_${order.name}`, // We'll map username to user id in real implementation
+      'order_status',
+      `Order Status Update`,
+      `Your order status is now: ${status}`,
+      `/?s=${sid}`
+    )
+  }
+  
+  broadcast(sid)
+  res.json({ ok: true, statusId })
+})
+
+app.get('/api/orders/:sid/:uid/status', (req, res) => {
+  const { sid, uid } = req.params
+  const history = getOrderStatusHistory(sid, uid)
+  const current = history[history.length - 1] || { status: 'pending' }
+  res.json({ ok: true, current: current.status, history })
+})
+
+// ── Notifications ───────────────────────────────────────────────────
+app.get('/api/notifications', requireAuth, (req, res) => {
+  const { unread_only } = req.query
+  const notifs = getUserNotifications(req.user.sub, unread_only === 'true')
+  res.json({ ok: true, notifications: notifs })
+})
+
+app.put('/api/notifications/:id/read', requireAuth, (req, res) => {
+  markNotificationRead(req.user.sub, req.params.id)
+  res.json({ ok: true })
+})
+
+app.post('/api/notifications/mark-all-read', requireAuth, (req, res) => {
+  markAllNotificationsRead(req.user.sub)
+  res.json({ ok: true })
+})
+
+// ── Restaurant Hours ────────────────────────────────────────────────
+app.get('/api/restaurants/:id/hours', (req, res) => {
+  const restaurantId = parseInt(req.params.id)
+  if (!db) {
+    return res.json({ ok: true, hours: memRestaurantHours[restaurantId] || [] })
+  }
+  const rows = db.prepare('SELECT * FROM restaurant_hours WHERE restaurant_id=?').all(restaurantId)
+  res.json({ ok: true, hours: rows })
+})
+
+app.put('/api/restaurants/:id/hours', requireAdmin, (req, res) => {
+  const restaurantId = parseInt(req.params.id)
+  const hours = req.body.hours || []
+  setRestaurantHours(restaurantId, hours)
+  res.json({ ok: true })
+})
+
+// ── Admin Analytics ─────────────────────────────────────────────────
+app.get('/api/admin/analytics', requireAdmin, (req, res) => {
+  const { days = 30 } = req.query
+  const since = getNow() - (days * 24 * 60 * 60 * 1000)
+  
+  if (!db) {
+    return res.json({ ok: true, stats: { total_sessions: 0, total_orders: 0, total_revenue: 0, avg_order_value: 0 } })
+  }
+  
+  const sessions = db.prepare('SELECT COUNT(*) as count FROM sessions WHERE created >= ?').all(since)[0].count
+  const orders = db.prepare('SELECT COUNT(*) as count FROM orders WHERE submitted_at >= ?').all(since)[0].count
+  const revenueRow = db.prepare('SELECT SUM(paid_amount) as total FROM orders WHERE paid=1 AND paid_at >= ?').all(since)[0]
+  const totalRevenue = revenueRow.total || 0
+  
+  res.json({
+    ok: true,
+    stats: {
+      total_sessions: sessions,
+      total_orders: orders,
+      total_revenue: totalRevenue,
+      avg_order_value: orders > 0 ? totalRevenue / orders : 0
+    }
   })
 })
 

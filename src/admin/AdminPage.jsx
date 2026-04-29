@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ShieldCheck, CheckCircle, RotateCcw, Trash2, Edit3, Copy, Check, Truck, Clock, Users,
   Printer, QrCode, ArrowLeft, Bell, MessageCircle, Settings, Plus, Save, Coffee, LogOut,
-  RefreshCw, Wallet, FileText, Download
+  RefreshCw, Wallet, FileText, Download, Search
 } from 'lucide-react'
 import { C } from '../constants/colors.js'
 import { fmt, genId, formatTime, getWhatsAppLink, inpSt } from '../utils/helpers.js'
@@ -12,6 +12,9 @@ import { Btn, GhostBtn } from '../components/Btn.jsx'
 import CombinedTotals from '../components/CombinedTotals.jsx'
 import Countdown from '../components/Countdown.jsx'
 import { generateMD } from '../utils/markdown.js'
+import AnalyticsTab from './AnalyticsTab.jsx'
+import PromoCodesTab from './PromoCodesTab.jsx'
+import OrderStatusTab from './OrderStatusTab.jsx'
 import {
   buildSessionCsv,
   downloadBlob,
@@ -93,6 +96,7 @@ export default function AdminPage() {
   const [sessionFilter, setSessionFilter] = useState('')
   const [sessions, setSessions] = useState([])
   const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [activeAdminTab, setActiveAdminTab] = useState('sessions') // 'sessions', 'analytics', 'promo', 'status', 'settings'
   const [allOrders, setAllOrders] = useState({})
   const [delivery, setDelivery] = useState(0)
   const [deliveryInput, setDeliveryInput] = useState('')
@@ -121,6 +125,20 @@ export default function AdminPage() {
   const [orderSearch, setOrderSearch] = useState('')
   const [showUnpaidOnly, setShowUnpaidOnly] = useState(false)
   const [bulkPayLoading, setBulkPayLoading] = useState('')
+  const [sessionVotes, setSessionVotes] = useState({})
+
+  // Promo code admin states
+  const [promoCodes, setPromoCodes] = useState([])
+  const [showPromoForm, setShowPromoForm] = useState(false)
+  const [newPromo, setNewPromo] = useState({ 
+    code: '', discount_type: 'percent', value: '', min_amount: 0, max_uses: '', expires_at: '', active: true 
+  })
+
+  // Analytics states
+  const [analytics, setAnalytics] = useState({ stats: null, loading: false })
+
+  // Order status management
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const evtRef = useRef(null)
   const prevCount = useRef(0)
@@ -171,17 +189,38 @@ export default function AdminPage() {
   }
 
   const refreshAdminSessions = async () => {
-    if (!isAuthenticated) return
-    setSessionsLoading(true)
     try {
-      const response = await guarded(() => api.getAdminSessions())
-      setSessions(response.sessions || [])
-      setUsingDefaults(!!response.usingDefaultCredentials)
-    } catch (_) {
-      // handled centrally
+      setSessionsLoading(true)
+      const [sessionsRes, settingsRes, ordersRes, promoCodesRes] = await Promise.all([
+        api.getAdminSessions(),
+        api.getSettings(),
+        sid ? api.getSession(sid) : Promise.resolve({}),
+        api.getAdminPromoCodes()
+      ])
+      
+      if (sessionsRes.ok) setSessions(sessionsRes.sessions || [])
+      if (settingsRes.ok) {
+        setBreadTypes(settingsRes.bread_types || [])
+        setRests(settingsRes.rests || [])
+        setDrinks(settingsRes.drinks || [])
+      }
+      if (ordersRes.ok) {
+        setAllOrders(ordersRes.orders || {})
+        setDelivery(ordersRes.delivery || 0)
+        setSessStatus(ordersRes.status || 'open')
+        setDeadline(ordersRes.deadline)
+        setExpected(ordersRes.expected || [])
+        setSessionTitle(ordersRes.title || '')
+        setAnnouncement(ordersRes.announcement || '')
+        setRestaurantStatuses(ordersRes.restaurantStatuses || {})
+      }
+      if (promoCodesRes.ok) setPromoCodes(promoCodesRes.promos || [])
+    } catch (error) {
+      console.error('Failed to refresh:', error)
     } finally {
       setSessionsLoading(false)
     }
+  }
   }
 
   const refreshSettings = async () => {
@@ -667,34 +706,6 @@ export default function AdminPage() {
     )
   }
 
-  return (
-    <div style={{ minHeight:'100vh', paddingBottom:60 }} className="animate-fade-in">
-      <div className="glass-header no-print" style={{ padding:'16px 18px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-          <div>
-            <div style={{ fontSize:18, fontWeight:900, color:C.dark, display:'flex', alignItems:'center', gap:8 }}>
-              <ShieldCheck size={20} color={C.green}/> {sessionTitle || 'لوحة التحكم'} <span className="live-indicator"></span>
-            </div>
-            <div style={{ fontSize:12, color:C.muted, fontWeight:700, marginTop:2 }}>
-              {status === 'complete' ? '✅ الطلب مكتمل' : '🟢 يتم المتابعة حالياً'} · {sid}
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <Btn onClick={shareWhatsApp} color="#25D366" style={{ padding:'0 16px', height:40 }}>
-              <MessageCircle size={18}/> واتساب
-            </Btn>
-            <NotificationButton enabled={desktopNotifications} onClick={requestDesktopNotifications}/>
-            <GhostBtn onClick={() => setShowSettings(true)} style={{ padding:'8px 12px' }}><Settings size={18}/></GhostBtn>
-            <GhostBtn onClick={() => setShowQR(true)} style={{ padding:'8px 12px' }}><QrCode size={18}/></GhostBtn>
-            <GhostBtn onClick={() => copyText(orderLink(sid), 'link')} style={{ padding:'8px 12px' }}>
-              {copied === 'link' ? <Check size={18} color={C.green}/> : <Copy size={18}/>}
-            </GhostBtn>
-            <GhostBtn onClick={leaveSession} style={{ padding:'8px 12px' }}><ArrowLeft size={18}/></GhostBtn>
-            <GhostBtn onClick={handleLogout} color={C.red} style={{ padding:'8px 12px' }}><LogOut size={18}/></GhostBtn>
-          </div>
-        </div>
-      </div>
-
       <div style={{ padding:'24px', maxWidth:1300, margin:'0 auto' }}>
         {usingDefaults && (
           <div style={{ background:'#FEF3C7', color:'#92400E', borderRadius:16, padding:'14px 18px', fontSize:13, fontWeight:800, marginBottom:20 }}>
@@ -702,28 +713,64 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="glass-card" style={{ padding:18, marginBottom:20 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr auto', gap:10, alignItems:'start' }}>
-            <input
-              type="text"
-              placeholder="عنوان الجلسة"
-              value={sessionTitle}
-              onChange={e => setSessionTitle(e.target.value)}
-              style={inpSt({ height:46 })}
-            />
-            <textarea
-              placeholder="إعلان أو ملاحظة تظهر لكل المستخدمين"
-              value={announcement}
-              onChange={e => setAnnouncement(e.target.value)}
-              style={{ ...inpSt({ minHeight: 84, resize: 'vertical' }) }}
-            />
-            <Btn onClick={saveSessionMeta} loading={savingMeta} style={{ minWidth:120, height:46, boxShadow:'none' }}>
-              <Save size={16}/> حفظ
-            </Btn>
-          </div>
+        {/* Admin Tabs Navigation */}
+        <div style={{ padding:'0 24px 16px', borderBottom: `1px solid ${C.border}`, display:'flex', gap:4, overflowX:'auto', flexWrap:'nowrap', marginBottom:24 }}>
+          {[
+            { id: 'sessions', label: 'الجلسات', icon: Users },
+            { id: 'analytics', label: 'إحصائيات', icon: FileText },
+            { id: 'promo', label: 'كوبونات', icon: Wallet },
+            { id: 'status', label: 'حالة الطلبات', icon: Clock },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveAdminTab(tab.id)}
+              style={{
+                display:'flex',
+                alignItems:'center',
+                gap:6,
+                padding:'10px 18px',
+                border:'none',
+                borderRadius:12,
+                background: activeAdminTab === tab.id ? C.primary : 'transparent',
+                color: activeAdminTab === tab.id ? '#FFF' : C.muted,
+                fontWeight:700,
+                fontSize:13,
+                cursor:'pointer',
+                whiteSpace:'nowrap',
+                transition:'all 0.2s'
+              }}
+            >
+              <tab.icon size={16}/>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginBottom:24 }}>
+        {/* Tab Panels */}
+        {activeAdminTab === 'sessions' && (
+          <>
+            <div className="glass-card" style={{ padding:18, marginBottom:20 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr auto', gap:10, alignItems:'start' }}>
+                <input
+                  type="text"
+                  placeholder="عنوان الجلسة"
+                  value={sessionTitle}
+                  onChange={e => setSessionTitle(e.target.value)}
+                  style={inpSt({ height:46 })}
+                />
+                <textarea
+                  placeholder="إعلان أو ملاحظة تظهر لكل المستخدمين"
+                  value={announcement}
+                  onChange={e => setAnnouncement(e.target.value)}
+                  style={{ ...inpSt({ minHeight: 84, resize: 'vertical' }) }}
+                />
+                <Btn onClick={saveSessionMeta} loading={savingMeta} style={{ minWidth:120, height:46, boxShadow:'none' }}>
+                  <Save size={16}/> حفظ
+                </Btn>
+              </div>
+            </div>
+
+            <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginBottom:24 }}>
           <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
             <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>عدد الأشخاص</div>
             <div style={{ fontSize:32, fontWeight:950, color:C.primary }}>{numPeople}</div>

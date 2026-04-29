@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { Copy, Check, Eye, Users, RefreshCw, CheckCircle2, ArrowRight, ArrowLeft, Home } from 'lucide-react'
+import { Copy, Check, Eye, Users, RefreshCw, CheckCircle2, ArrowRight, ArrowLeft, Download } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { BREAD } from '../constants/data.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
+import RestaurantStatusBoard from '../components/RestaurantStatusBoard.jsx'
+import { downloadBlob } from '../utils/orders.js'
+import { generatePersonalReceipt } from '../utils/receipts.js'
 
-export default function SubmittedScreen({ sessionId, userName, allOrders, sessStatus, myOrder, sessionTitle = '', announcement = '', expected = [], onGoSummary, onEditOrder }) {
+export default function SubmittedScreen({ sessionId, userName, allOrders, sessStatus, myOrder, sessionTitle = '', announcement = '', expected = [], delivery = 0, breadTypes = BREAD, rests = [], restaurantStatuses = {}, onGoSummary, onEditOrder }) {
   const [copied, setCopied] = useState('')
 
   const orderLink = () => { const u = new URL(window.location.origin); u.searchParams.set('s', sessionId); return u.toString() }
@@ -19,6 +22,7 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
   const isLocked = sessStatus === 'complete'
   const expectedCount = expected.length
   const progress = expectedCount > 0 ? Math.min(100, (orders.length / expectedCount) * 100) : 0
+  const perPerson = orders.length > 0 ? delivery / orders.length : 0
 
   return (
     <div style={{ minHeight:'100vh', paddingBottom:50 }} className="animate-fade-in">
@@ -58,6 +62,8 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
           </div>
         )}
 
+        <RestaurantStatusBoard allOrders={allOrders} rests={rests} restaurantStatuses={restaurantStatuses} title="متابعة المطاعم الآن" />
+
         <div className="orders-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 24, alignItems: 'start' }}>
           
           <div>
@@ -94,6 +100,20 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
                   <span style={{ fontSize: 18, fontWeight: 950, color: C.primary }}>{(myOrder.lines||[]).reduce((s,l)=>s+(l.price||0)*l.qty,0)} ج</span>
                 </div>
               </div>
+            )}
+
+            {myOrder && (
+              <Btn
+                onClick={() => downloadBlob(
+                  `receipt-${sessionId}-${userName}.txt`,
+                  generatePersonalReceipt({ sessionId, sessionTitle, order: myOrder, deliveryShare: perPerson, breadTypes }),
+                  'text/plain;charset=utf-8'
+                )}
+                color={C.dark}
+                style={{ width:'100%', height:50, marginBottom:12 }}
+              >
+                <Download size={18}/> تحميل إيصالك
+              </Btn>
             )}
 
             {!isLocked ? (

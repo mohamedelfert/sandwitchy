@@ -4,6 +4,7 @@ import { fmt, getWhatsAppLink } from '../utils/helpers.js'
 import { generateMD } from '../utils/markdown.js'
 import CombinedTotals from '../components/CombinedTotals.jsx'
 import CostCard from '../components/CostCard.jsx'
+import RestaurantStatusBoard from '../components/RestaurantStatusBoard.jsx'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import {
   buildSessionCsv,
@@ -16,7 +17,7 @@ import {
   getRestaurantBreakdown,
 } from '../utils/orders.js'
 
-export default function SummaryScreen({ sessionId, allOrders, delivery, rests, drinkTypes = [], breadTypes = [], sessStatus, sessionTitle = '', announcement = '', expected = [], onBack, onEditOrder }) {
+export default function SummaryScreen({ sessionId, allOrders, delivery, rests, drinkTypes = [], breadTypes = [], sessStatus, sessionTitle = '', announcement = '', expected = [], restaurantStatuses = {}, onBack, onEditOrder }) {
   const orders = getOrdersArray(allOrders)
   const numPeople = orders.length
   const perPerson = getPerPersonDelivery(allOrders, delivery)
@@ -107,6 +108,8 @@ export default function SummaryScreen({ sessionId, allOrders, delivery, rests, d
         </div>
 
         <CombinedTotals allOrders={allOrders} breadTypes={breadTypes}/>
+
+        <RestaurantStatusBoard allOrders={allOrders} rests={rests} restaurantStatuses={restaurantStatuses} title="متابعة المطاعم" />
 
         {restaurantBreakdown.length > 0 && (
           <div className="glass-card" style={{ padding:'18px', marginTop:20 }}>

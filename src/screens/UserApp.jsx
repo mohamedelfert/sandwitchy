@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { INIT_RESTS } from '../constants/data.js'
 import { genId } from '../utils/helpers.js'
 import { api } from '../api/client.js'
+import LoginScreen   from './LoginScreen.jsx'
+import RegisterScreen from './RegisterScreen.jsx'
 import WelcomeScreen   from './WelcomeScreen.jsx'
 import NameScreen      from './NameScreen.jsx'
 import HomeScreen      from './HomeScreen.jsx'
@@ -9,6 +11,9 @@ import MenuScreen      from './MenuScreen.jsx'
 import SubmittedScreen from './SubmittedScreen.jsx'
 import SummaryScreen   from './SummaryScreen.jsx'
 import CompleteScreen  from './CompleteScreen.jsx'
+import ProfileScreen   from './ProfileScreen.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import VoteScreen      from './VoteScreen.jsx'
 
 // ── localStorage helpers ──────────────────────────────────────
 const LAST_ORDER_KEY = 'sandwitchy_last_order'
@@ -42,6 +47,7 @@ function loadStoredTelegram() {
 }
 
 export default function UserApp() {
+  const { user, isAuthenticated, loading } = useAuth()
   const [sessionId,    setSessionId]    = useState(null)
   const [myId]                          = useState(() => genId())
   const [userName,     setUserName]     = useState(() => loadStoredName())
@@ -53,6 +59,7 @@ export default function UserApp() {
   const [expected,     setExpected]     = useState([])
   const [sessionTitle, setSessionTitle] = useState('')
   const [announcement, setAnnouncement] = useState('')
+  const [restaurantStatuses, setRestaurantStatuses] = useState({})
   const [submitError,  setSubmitError]  = useState('')
   const [submitting,   setSubmitting]   = useState(false)
   const [isEditing,    setIsEditing]    = useState(false)
@@ -60,12 +67,18 @@ export default function UserApp() {
   const [phoneUser,    setPhoneUser]    = useState(() => loadStoredPhone())
   const [breadTypes,   setBreadTypes]   = useState([])
   const [drinkTypes,   setDrinkTypes]   = useState([])
+  const [authMode,     setAuthMode]     = useState('login') // 'login' or 'register'
 
   const [rests,     setRests]     = useState(INIT_RESTS)
   const [lines,     setLines]     = useState([])
   const [drinks,    setDrinks]    = useState({})
   const [notes,     setNotes]     = useState({})
   const [activeRid, setActiveRid] = useState(null)
+  const [showProfile, setShowProfile] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoDiscount, setPromoDiscount] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFavorites, setShowFavorites] = useState(false)
   const evtRef = useRef(null)
 
   // Restore session from URL
@@ -98,6 +111,7 @@ export default function UserApp() {
           setExpected(d.expected || [])
           setSessionTitle(d.title || '')
           setAnnouncement(d.announcement || '')
+          setRestaurantStatuses(d.restaurantStatuses || {})
         } catch (_) {}
       }
       es.onerror = () => { es.close(); setTimeout(connect, 3000) }
@@ -106,6 +120,18 @@ export default function UserApp() {
     connect()
     return () => evtRef.current?.close()
   }, [sessionId])
+
+  // Handle promo code validation
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return
+    const res = await api.validatePromo(promoCode.trim(), 0) // Will validate with actual total
+    if (res.ok) {
+      setPromoDiscount(res)
+      alert(`Promo applied! ${res.discount_type === 'percent' ? res.discount + '% off' : res.discount + ' ج discount'}`)
+    } else {
+      alert(res.error || 'Invalid promo code')
+    }
+  }
 
   // ── Order helpers ──
   const lKey = (r, i, b) => `${r}_${i}_${b||'none'}`
@@ -184,48 +210,144 @@ export default function UserApp() {
   const handleUpdatePrice = (restId,itemId,pr)  => setRests(p => p.map(r => r.id===restId ? {...r,items:r.items.map(i=>i.id===itemId?{...i,price:pr}:i)} : r))
 
   // Global complete state
-  if (sessStatus==='complete' && screen!=='welcome' && screen!=='name') {
-    return <CompleteScreen userName={userName} allOrders={allOrders} delivery={delivery} sessionId={sessionId} sessionTitle={sessionTitle} announcement={announcement}/>
+  if (sessStatus==='complete' && screen!=='welcome' && screen!=='name' && screen!=='profile') {
+    return <CompleteScreen userName={userName} allOrders={allOrders} delivery={delivery} sessionId={sessionId} sessionTitle={sessionTitle} announcement={announcement} breadTypes={breadTypes} rests={rests} restaurantStatuses={restaurantStatuses}/>
+  }
+
+  // Auth screens
+  if (!isAuthenticated) {
+    if (screen === 'welcome') {
+      return (
+        <WelcomeScreen 
+          onStart={(mode) => {
+            setAuthMode(mode)
+            setScreen('login')
+          }}
+        />
+      )
+    }
+    if (screen === 'login') {
+      return authMode === 'login' ? (
+        <LoginScreen onSwitchToRegister={() => setAuthMode('register')} />
+      ) : (
+        <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} />
+      )
+    }
+  }
+
+  // Profile screen
+  if (showProfile) {
+    return <ProfileScreen onBack={() => setShowProfile(false)} />
   }
 
   const activeRest = rests.find(r => r.id === activeRid)
   const totalItems = lines.reduce((s,l) => s+l.qty, 0)
   const mySubmittedOrder = Object.values(allOrders).find(o => o.name === userName)
   const hasLastOrder = !!loadLastOrder()
+  const filteredRests = rests.filter(r => 
+    !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', background: '#FFF', minHeight: '100vh', boxShadow: '0 0 50px rgba(0,0,0,0.05)', position: 'relative' }}>
-      {screen==='welcome' && <WelcomeScreen onStart={startSession}/>}
+      {screen==='welcome' && <WelcomeScreen onStart={mode => { setAuthMode(mode); setScreen('login'); }} />}
+      
+      {screen==='login' && (
+        authMode === 'login' ?
+          <LoginScreen onSwitchToRegister={() => setAuthMode('register')} /> :
+          <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} />
+      )}
       
       {screen==='name' && (
-<NameScreen
-           sessionId={sessionId}
-           hasLastOrder={hasLastOrder}
-           initialName={userName}
-           initialPhone={phoneUser}
-           initialTelegram={telegramUser}
-           onConfirm={(name,tg,ph,hist) => { 
-             setUserName(name); 
-             saveStoredName(name); 
-              setTelegramUser(tg || ''); 
-             saveStoredTelegram(tg || '');
-             setPhoneUser(ph || '');
-             saveStoredPhone(ph || '');
-             if (hist) {
-               setLines(hist.lines || [])
-               setDrinks(hist.drinks || {})
-               setNotes(hist.notes || {})
-             }
-             if (Object.values(allOrders).some(o => o.name === name)) {
-               setScreen('submitted')
-             } else {
-               setScreen('home') 
-             }
-           }}
-           onRepeatLast={(name,tg,ph) => { 
-             setUserName(name); 
-             saveStoredName(name); 
-             setTelegramUser(tg); 
+        <NameScreen
+             sessionId={sessionId}
+             hasLastOrder={hasLastOrder}
+             initialName={userName}
+             initialPhone={phoneUser}
+             initialTelegram={telegramUser}
+             onConfirm={(name,tg,ph,hist) => { 
+               setUserName(name); 
+               saveStoredName(name); 
+               setTelegramUser(tg || ''); 
+               saveStoredTelegram(tg || '');
+               setPhoneUser(ph || '');
+               saveStoredPhone(ph || '');
+               if (hist) {
+                 setLines(hist.lines || [])
+                 setDrinks(hist.drinks || {})
+                 setNotes(hist.notes || {})
+               }
+               if (Object.values(allOrders).some(o => o.name === name)) {
+                 setScreen('submitted')
+               } else {
+                 setScreen('home') 
+               }
+             }}
+             onRepeatLast={(name,tg,ph) => { 
+               setUserName(name); 
+               saveStoredName(name); 
+               setTelegramUser(tg); 
+               saveStoredTelegram(tg || '');
+               setPhoneUser(ph);
+               saveStoredPhone(ph);
+               repeatLastOrder() 
+             }}
+          />
+      )}
+      
+      {screen==='home' && (
+        <HomeScreen
+          userName={userName} sessionId={sessionId} rests={filteredRests} setRests={setRests}
+          lines={lines} drinks={drinks} drinkTypes={drinkTypes} allOrders={allOrders} isEditing={isEditing}
+          deadline={deadline} sessStatus={sessStatus} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
+          onGoMenu={rid => { setActiveRid(rid); setScreen('menu') }}
+          onSubmit={submitOrder} submitting={submitting} submitError={submitError}
+          onDrinkAdd={addD} onDrinkSub={subD}
+          onCancelEdit={() => { setIsEditing(false); setLines([]); setDrinks({}); setNotes({}); setScreen('submitted') }}
+          onOpenProfile={() => setShowProfile(true)}
+          onSearchChange={setSearchQuery}
+          searchQuery={searchQuery}
+          promoCode={promoCode}
+          promoDiscount={promoDiscount}
+          onApplyPromo={handleApplyPromo}
+        />
+      )}
+      
+      {screen==='menu' && activeRest && (
+        <MenuScreen
+          activeRest={activeRest} lines={lines} notes={notes} totalItems={totalItems}
+          breadTypes={breadTypes}
+          onBack={() => setScreen('home')}
+          onAddL={addL} onSubL={subL} onUpdatePrice= {handleUpdatePrice}
+          onAddItem={handleAddItem} onSetNote={setNote}
+        />
+      )}
+      
+      {screen==='submitted' && (
+        <SubmittedScreen
+          sessionId={sessionId} userName={userName} allOrders={allOrders}
+          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} delivery={delivery} breadTypes={breadTypes} rests={rests} restaurantStatuses={restaurantStatuses}
+          onGoSummary={() => setScreen('summary')} onEditOrder={startEditing}
+        />
+      )}
+      
+      {screen==='summary' && (
+        <SummaryScreen
+          sessionId={sessionId} allOrders={allOrders} delivery={delivery}
+          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
+onBack={() => setScreen('submitted')} onEditOrder={startEditing}
+        />
+      )}
+
+      {screen==='vote' && (
+        <VoteScreen
+          sessionId={sessionId} rests={rests}
+          onBack={() => setScreen('home')}
+        />
+      )}
+    </div>
+  )
+}
              saveStoredTelegram(tg || '');
              setPhoneUser(ph);
              saveStoredPhone(ph);
@@ -238,7 +360,7 @@ export default function UserApp() {
         <HomeScreen
           userName={userName} sessionId={sessionId} rests={rests} setRests={setRests}
           lines={lines} drinks={drinks} drinkTypes={drinkTypes} allOrders={allOrders} isEditing={isEditing}
-          deadline={deadline} sessStatus={sessStatus} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
+          deadline={deadline} sessStatus={sessStatus} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
           onGoMenu={rid => { setActiveRid(rid); setScreen('menu') }}
           onSubmit={submitOrder} submitting={submitting} submitError={submitError}
           onDrinkAdd={addD} onDrinkSub={subD}
@@ -259,7 +381,7 @@ export default function UserApp() {
       {screen==='submitted' && (
         <SubmittedScreen
           sessionId={sessionId} userName={userName} allOrders={allOrders}
-          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
+          sessStatus={sessStatus} myOrder={mySubmittedOrder} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} delivery={delivery} breadTypes={breadTypes} rests={rests} restaurantStatuses={restaurantStatuses}
           onGoSummary={() => setScreen('summary')} onEditOrder={startEditing}
         />
       )}
@@ -267,8 +389,15 @@ export default function UserApp() {
       {screen==='summary' && (
         <SummaryScreen
           sessionId={sessionId} allOrders={allOrders} delivery={delivery}
-          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected}
+          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline} sessionTitle={sessionTitle} announcement={announcement} expected={expected} restaurantStatuses={restaurantStatuses}
           onBack={() => setScreen('submitted')} onEditOrder={startEditing}
+        />
+      )}
+
+      {screen==='vote' && (
+        <VoteScreen
+          sessionId={sessionId} rests={rests}
+          onBack={() => setScreen('home')}
         />
       )}
     </div>

@@ -88,6 +88,50 @@ export function getDrinkBreakdown(allOrders, drinks) {
     .sort((a, b) => b.qty - a.qty)
 }
 
+export function getSessionRestaurants(allOrders, rests, restaurantStatuses = {}) {
+  const lookup = new Map((rests || []).map(rest => [String(rest.id), rest]))
+  const grouped = new Map()
+
+  getOrdersArray(allOrders).forEach(order => {
+    ;(order.lines || []).forEach(line => {
+      const key = String(line.rid)
+      const rest = lookup.get(key) || { id: line.rid, name: line.rname || 'غير معروف', emoji: '🍽️', bg: '#F8FAFC' }
+      const entry = grouped.get(key) || {
+        id: rest.id,
+        name: rest.name,
+        emoji: rest.emoji || '🍽️',
+        bg: rest.bg || '#F8FAFC',
+        items: 0,
+        people: new Set(),
+      }
+      entry.items += line.qty
+      entry.people.add(order.name)
+      grouped.set(key, entry)
+    })
+  })
+
+  Object.keys(restaurantStatuses || {}).forEach(restId => {
+    if (grouped.has(String(restId))) return
+    const rest = lookup.get(String(restId))
+    grouped.set(String(restId), {
+      id: rest?.id || restId,
+      name: rest?.name || `مطعم ${restId}`,
+      emoji: rest?.emoji || '🍽️',
+      bg: rest?.bg || '#F8FAFC',
+      items: 0,
+      people: new Set(),
+    })
+  })
+
+  return [...grouped.values()]
+    .map(entry => ({
+      ...entry,
+      peopleCount: entry.people.size,
+      status: restaurantStatuses?.[String(entry.id)] || null,
+    }))
+    .sort((a, b) => b.items - a.items)
+}
+
 export function buildSessionCsv(allOrders, delivery) {
   const orders = getOrdersArray(allOrders)
   const perPerson = getPerPersonDelivery(allOrders, delivery)

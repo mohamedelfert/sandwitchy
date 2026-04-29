@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Plus, Copy, Check, Users, ShoppingBag, Coffee, ArrowRight, X, ArrowLeft } from 'lucide-react'
+import { Plus, Copy, Check, Users, ShoppingBag, Coffee, ArrowRight, X, ArrowLeft, ThumbsUp, User } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { EMOJIS } from '../constants/data.js'
 import { inpSt } from '../utils/helpers.js'
 import Modal from '../components/Modal.jsx'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import Countdown from '../components/Countdown.jsx'
+import RestaurantStatusBoard from '../components/RestaurantStatusBoard.jsx'
 
-export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, sessionTitle = '', announcement = '', expected = [], onGoMenu, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit }) {
+export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, sessionTitle = '', announcement = '', expected = [], restaurantStatuses = {}, onGoMenu, onGoVote, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit, onOpenProfile, searchQuery, onSearchChange, promoCode, promoDiscount, onApplyPromo }) {
   const [copied,      setCopied]      = useState('')
   const [addRestOpen, setAddRestOpen] = useState(false)
   const [nRest,       setNRest]       = useState({ name:'', emoji:'🥙', hasBread:true, delivery:'' })
@@ -31,15 +32,18 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
   }
 
   return (
-    <div style={{ minHeight:'100vh', paddingBottom:(hasAnything||isEditing)?120:40 }} className="animate-fade-in">
+    <div style={{ minHeight:'100vh', paddingBottom:(hasAnything||isEditing)?180:40 }} className="animate-fade-in">
       {/* Premium Header */}
       <div className="glass-header" style={{ padding:'16px 18px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
           <div>
             <div style={{ fontSize:22, fontWeight:950, color:C.dark, letterSpacing:-0.5 }}>{sessionTitle || 'ساندوتشي'}</div>
             {sessionTitle && <div style={{ fontSize:11, color:C.muted, fontWeight:700, marginTop:2 }}>منصة الطلب الجماعي</div>}
           </div>
           <div style={{ display:'flex', gap: 8 }}>
+            <GhostBtn onClick={onOpenProfile} style={{ padding:'8px 14px', borderRadius: 12, background: C.primaryLight, color: C.primary }}>
+              <User size={16}/>
+            </GhostBtn>
             <GhostBtn onClick={() => window.history.back()} style={{ padding:'8px 14px', borderRadius: 12 }}>
               <ArrowLeft size={16}/>
             </GhostBtn>
@@ -48,6 +52,34 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
               <span style={{ fontSize:13, fontWeight:700 }}>{copied==='link'?'تم':'شارك'}</span>
             </GhostBtn>
           </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => onSearchChange?.(e.target.value)}
+            placeholder="🔍 Search restaurants or dishes..."
+            style={{
+              width: '100%',
+              padding: '10px 14px 10px 38px',
+              border: 'none',
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.9)',
+              fontSize: 14,
+              fontFamily: 'inherit',
+              outline: 'none',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+            }}
+          />
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16 }}>🔍</span>
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange?.('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: C.tag, borderRadius: 8, padding: 2, cursor: 'pointer', color: C.muted, fontSize: 12 }}
+            >✕</button>
+          )}
         </div>
         
         <div style={{ background: C.grad, borderRadius:16, padding:'12px 16px', display:'flex', alignItems:'center', gap:12, boxShadow: '0 8px 20px rgba(99,102,241,0.2)' }}>
@@ -73,6 +105,54 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
           </div>
         )}
 
+        {/* Promo Code Section */}
+        {!isEditing && (
+          <div className="glass-card" style={{ padding:'12px 14px', marginBottom:16 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <div style={{ fontSize:20 }}>🎟️</div>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={e => setPromoCode(e.target.value)}
+                placeholder="Enter promo code"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  background: '#FAFAFA',
+                  direction: 'ltr'
+                }}
+              />
+              <button
+                onClick={onApplyPromo}
+                disabled={!promoCode.trim()}
+                style={{
+                  background: promoCode.trim() ? C.primary : C.tag,
+                  color: promoCode.trim() ? '#FFF' : C.muted,
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: promoCode.trim() ? 'pointer' : 'default',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Apply
+              </button>
+            </div>
+            {promoDiscount && (
+              <div style={{ fontSize:12, color:C.green, fontWeight:700, marginTop:6, display:'flex', alignItems:'center', gap:4 }}>
+                <ThumbsUp size={12}/> Promo applied: {promoDiscount.discount_type === 'percent' ? `${promoDiscount.discount}% off` : `${promoDiscount.discount} ج off`}
+              </div>
+            )}
+          </div>
+        )}
+
         {expectedCount > 0 && (
           <div className="glass-card" style={{ padding:'14px 16px', marginBottom:18 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:10 }}>
@@ -84,6 +164,8 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
             </div>
           </div>
         )}
+
+        <RestaurantStatusBoard allOrders={allOrders} rests={rests} restaurantStatuses={restaurantStatuses} title="متابعة المطاعم" />
 
         <div style={{ fontSize:16, fontWeight:900, color:C.dark, marginBottom:16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <ShoppingBag size={18} color={C.primary}/> اختار المطعم
@@ -125,6 +207,15 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
             <div style={{ fontSize:13, fontWeight:800, color:C.primary }}>إضافة مطعم</div>
           </button>
         </div>
+
+        {/* Vote button */}
+        <button onClick={onGoVote}
+          className="glass-card"
+          style={{ marginTop: 16, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', border: `2px solid ${C.primary}` }}
+        >
+          <ThumbsUp size={20} color={C.primary}/>
+          <span style={{ fontSize: 15, fontWeight: 900, color: C.primary }}>تصويت على المطعم</span>
+        </button>
 
         {/* Drinks Section */}
         <div style={{ marginTop:32 }}>
