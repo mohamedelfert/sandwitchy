@@ -50,6 +50,15 @@ try {
       key   TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS order_history (
+      hid     TEXT PRIMARY KEY,
+      name    TEXT,
+      session_id TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      lines   TEXT DEFAULT '[]',
+      drinks  TEXT DEFAULT '{}',
+      notes   TEXT DEFAULT '{}'
+    );
   `)
   
   // Migrations for existing tables
@@ -159,6 +168,30 @@ function deleteSession(sid) {
   db.prepare('DELETE FROM sessions WHERE sid=?').run(sid)
   db.prepare('DELETE FROM orders WHERE sid=?').run(sid)
   db.prepare('DELETE FROM expected_members WHERE sid=?').run(sid)
+}
+
+function saveOrderHistory(name, sid, lines, drinks, notes) {
+  if (!db) return
+  const hid = `h_${Date.now()}_${Math.random().toString(36).slice(2,9)}`
+  db.prepare(`
+    INSERT INTO order_history (hid, name, session_id, lines, drinks, notes, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(hid, name, sid, JSON.stringify(lines||[]), JSON.stringify(drinks||{}), JSON.stringify(notes||{}), Date.now())
+}
+
+function getOrderHistory(name) {
+  if (!db) return []
+  const rows = db.prepare(`
+    SELECT * FROM order_history WHERE name=? ORDER BY created_at DESC LIMIT 10
+  `).all(name)
+  return rows.map(r => ({
+    hid: r.hid,
+    sessionId: r.session_id,
+    createdAt: r.created_at,
+    lines: JSON.parse(r.lines),
+    drinks: JSON.parse(r.drinks),
+    notes: JSON.parse(r.notes || '{}'),
+  }))
 }
 
 function buildPayload(sid) {
@@ -289,6 +322,7 @@ app.post('/api/orders/:sid/:uid', (req, res) => {
   if (!req.body?.name || typeof req.body.name !== 'string' || req.body.name.length > 80)
     return res.status(400).json({ ok:false })
   setOrder(sid, uid, { ...req.body, submittedAt: Date.now() })
+  saveOrderHistory(req.body.name, sid, req.body.lines, req.body.drinks, req.body.notes)
   broadcast(sid)
   console.log(`[order]  ${sid} | ${req.body.name}${req.body.telegram?' @'+req.body.telegram:''} | ${(req.body.lines||[]).reduce((s,l)=>s+l.qty,0)} items`)
   res.json({ ok:true })
@@ -386,6 +420,26 @@ app.post('/api/settings', (req, res) => {
   const { key, value } = req.body
   db.prepare('INSERT INTO app_settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, JSON.stringify(value))
   res.json({ ok:true })
+})
+
+// Order history
+app.get('/api/history/:name', (req, res) => {
+  const { name } = req.params
+  if (!name || name.length > 80) return res.status(400).json([])
+  res.json(getOrderHistory(name))
+})
+
+// Reorder from history
+app.post('/api/reorder/:hid', (req, res) => {
+  if (!db) return res.status(500).json({ ok:false })
+  const { hid } = req.params
+  const row = db.prepare('SELECT * FROM order_history WHERE hid=?').get(hid)
+  if (!row) return res.status(404).json({ ok:false })
+  res.json({
+    lines: JSON.parse(row.lines),
+    drinks: JSON.parse(row.drinks),
+    notes: JSON.parse(row.notes || '{}'),
+  })
 })
 
 // Static

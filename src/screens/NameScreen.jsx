@@ -1,16 +1,51 @@
-import { useState } from 'react'
-import { RotateCcw, User, AtSign, ArrowRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RotateCcw, User, AtSign, ArrowRight, History, ChevronDown } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
 import { inpSt } from '../utils/helpers.js'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
+import { api } from '../api/client.js'
+
+function formatDate(ts) {
+  const d = new Date(ts)
+  const now = new Date()
+  const diff = now - d
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (mins < 1) return 'الآن'
+  if (mins < 60) return `من ${mins} دقيقة`
+  if (hours < 24) return `من ${hours} ساعة`
+  if (days === 1) return 'أمس'
+  return `من ${days} يوم`
+}
 
 export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepeatLast }) {
   const [name,     setName]     = useState('')
   const [telegram, setTelegram] = useState('')
   const [phone,    setPhone]    = useState('')
+  const [history,  setHistory] = useState([])
+  const [showHist, setShowHist] = useState(false)
+  const [loadingHist, setLoadingHist] = useState(false)
   const clean  = t => t.trim().replace(/^@/, '')
   const canGo  = name.trim().length > 0
 
+  useEffect(() => {
+    if (name.trim().length < 2) { setHistory([]); return }
+    const timer = setTimeout(() => {
+      setLoadingHist(true)
+      api.getOrderHistory(name.trim()).then(h => {
+        setHistory(h || [])
+        setLoadingHist(false)
+      }).catch(() => setLoadingHist(false))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [name])
+
+  const handleSelectHistory = (h) => {
+    const cleaned = { ...h, lines: h.lines.map(l => ({ ...l, key: `${l.rid}_${l.iid}_${l.bt||'none'}` })) }
+    onConfirm(name.trim(), clean(telegram), phone.trim(), cleaned)
+    setShowHist(false)
+  }
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }} className="animate-fade-in">
@@ -38,6 +73,32 @@ export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepea
                 style={inpSt({ direction:'rtl', fontSize:18, fontWeight:800, border: name ? `2px solid ${C.primary}33` : '2px solid rgba(0,0,0,0.05)' })} autoFocus/>
             </div>
 
+            {history.length > 0 && (
+              <div style={{ width:'100%', position:'relative', zIndex: 100 }}>
+                <button type="button" onClick={() => setShowHist(!showHist)} disabled style={{ width:'100%', height:44, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 16px', background:C.tag, borderRadius:12, border:'none', cursor:'pointer', color:C.primary, fontSize:14, fontWeight:700 }}>
+                  <span style={{ display:'flex', alignItems:'center', gap:8 }}><History size={16}/> طلبات سابقة ({history.length})</span>
+                  <ChevronDown size={18} style={{ transform: showHist ? 'rotate(180deg)' : 'none', transition:'0.2s' }}/>
+                </button>
+                {showHist && (
+                  <div style={{ position:'absolute', top:'110%', right:0, left:0, background:'#FFF', borderRadius:12, boxShadow:'0 10px 40px rgba(0,0,0,0.15)', overflow:'hidden', maxHeight:250, overflowY:'auto' }}>
+                    {history.map(h => {
+                      const itemCount = (h.lines||[]).reduce((s,l)=>s+l.qty,0)
+                      const drinkCount = Object.values(h.drinks||{}).reduce((s,v)=>s+v,0)
+                      return (
+                        <button key={h.hid} type="button" onClick={() => handleSelectHistory(h)} style={{ width:'100%', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', background:'transparent', border:'none', borderBottom:'1px solid #f0f0f0', cursor:'pointer', textAlign:'right' }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:800, color:C.dark }}>{itemCount} عناصر + {drinkCount} مشروبات</div>
+                            <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>{formatDate(h.createdAt)}</div>
+                          </div>
+                          <ArrowRight size={16} style={{ color:C.muted }}/>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ width:'100%' }}>
               <label style={{ fontSize:13, color:C.muted, fontWeight:700, marginBottom:8, display: 'block' }}>رقم الموبايل / واتساب (اختياري)</label>
               <input type="tel" placeholder="مثال: 01011731954"
@@ -64,12 +125,6 @@ export default function NameScreen({ sessionId, hasLastOrder, onConfirm, onRepea
               <Btn onClick={()=>canGo&&onConfirm(name.trim(),clean(telegram),phone.trim())} disabled={!canGo} style={{ width: '100%', height: 56 }}>
                 ابدأ الطلب <ArrowRight size={20}/>
               </Btn>
-
-              {hasLastOrder && (
-                <GhostBtn onClick={()=>canGo&&onRepeatLast(name.trim(),clean(telegram),phone.trim())} disabled={!canGo} style={{ width: '100%', height: 52, color: C.purple, borderColor: `${C.purple}22` }}>
-                   <RotateCcw size={16}/> كرر نفس طلبي الأخير
-                </GhostBtn>
-              )}
             </div>
           </div>
         </div>

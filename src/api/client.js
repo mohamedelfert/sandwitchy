@@ -12,4 +12,6 @@ export const api = {
   getSettings:   ()          => fetch(`/api/settings`).then(r=>r.json()),
   updateSettings:(key,value) => fetch(`/api/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key,value}) }).then(r=>r.json()),
   getActiveSessions: ()      => fetch(`/api/sessions/active`).then(r=>r.json()),
+  getOrderHistory: (name)    => fetch(`/api/history/${encodeURIComponent(name)}`).then(r=>r.json()),
+  reorder:      (hid)       => fetch(`/api/reorder/${hid}`, { method:'POST' }).then(r=>r.json()),
 }

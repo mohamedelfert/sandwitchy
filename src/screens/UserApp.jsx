@@ -192,30 +192,35 @@ export default function UserApp() {
       {screen==='welcome' && <WelcomeScreen onStart={startSession}/>}
       
       {screen==='name' && (
-         <NameScreen
-          sessionId={sessionId}
-          hasLastOrder={hasLastOrder}
-          onConfirm={(name,tg,ph) => { 
-            setUserName(name); 
-            saveStoredName(name); 
-            setTelegramUser(tg); 
-            setPhoneUser(ph);
-            saveStoredPhone(ph);
-            if (Object.values(allOrders).some(o => o.name === name)) {
-              setScreen('submitted')
-            } else {
-              setScreen('home') 
-            }
-          }}
-          onRepeatLast={(name,tg,ph) => { 
-            setUserName(name); 
-            saveStoredName(name); 
-            setTelegramUser(tg); 
-            setPhoneUser(ph);
-            saveStoredPhone(ph);
-            repeatLastOrder() 
-          }}
-        />
+<NameScreen
+           sessionId={sessionId}
+           hasLastOrder={hasLastOrder}
+           onConfirm={(name,tg,ph,hist) => { 
+             setUserName(name); 
+             saveStoredName(name); 
+             setTelegramUser(tg || ''); 
+             setPhoneUser(ph || '');
+             saveStoredPhone(ph || '');
+             if (hist) {
+               setLines(hist.lines || [])
+               setDrinks(hist.drinks || {})
+               setNotes(hist.notes || {})
+             }
+             if (Object.values(allOrders).some(o => o.name === name)) {
+               setScreen('submitted')
+             } else {
+               setScreen('home') 
+             }
+           }}
+           onRepeatLast={(name,tg,ph) => { 
+             setUserName(name); 
+             saveStoredName(name); 
+             setTelegramUser(tg); 
+             setPhoneUser(ph);
+             saveStoredPhone(ph);
+             repeatLastOrder() 
+           }}
+         />
       )}
 
       {screen==='home' && (
