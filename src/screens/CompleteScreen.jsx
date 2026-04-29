@@ -39,6 +39,9 @@ export default function CompleteScreen({ userName, allOrders, delivery }) {
               </div>
               <div style={{ fontSize:56, fontWeight: 950, color: C.primary, lineHeight: 1 }}>{fmt(myTotal)} <span style={{ fontSize: 24 }}>ج</span></div>
               {delivery > 0 && <div style={{ fontSize:14, color:C.muted, marginTop:16, fontWeight: 600 }}>يشمل {fmt(perPerson)} ج نصيبك من التوصيل</div>}
+              <div style={{ fontSize:13, fontWeight:800, color: myOrder.paid ? C.green : C.red, marginTop: 14 }}>
+                {myOrder.paid ? 'تم تسجيل الدفع' : 'الدفع لسه غير متسجل'}
+              </div>
             </div>
           )}
 
@@ -48,7 +51,7 @@ export default function CompleteScreen({ userName, allOrders, delivery }) {
               <div style={{ fontSize:16, fontWeight:900, color:C.dark, marginBottom:16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>🧾 ملخص طلبك النهائي</span>
               </div>
-              <CostCard name={myOrder.name} lines={myOrder.lines} deliveryShare={perPerson} restDeliveries={{}} submittedAt={myOrder.submittedAt}/>
+              <CostCard name={myOrder.name} lines={myOrder.lines} deliveryShare={perPerson} restDeliveries={{}} submittedAt={myOrder.submittedAt} paid={myOrder.paid} paidAmount={myOrder.paidAmount}/>
             </div>
           )}
         </div>

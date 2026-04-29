@@ -3,7 +3,7 @@ import { C, FONT } from '../constants/colors.js'
 import { BREAD } from '../constants/data.js'
 import { fmt, formatTime } from '../utils/helpers.js'
 
-export default function CostCard({ name, lines, deliveryShare, restDeliveries, submittedAt }) {
+export default function CostCard({ name, lines, deliveryShare, restDeliveries, submittedAt, breadTypes = BREAD, paid = false, paidAmount = null }) {
   const itemsTotal   = (lines || []).reduce((s, l) => s + (l.price || 0) * l.qty, 0)
   const restDelTotal = Object.values(restDeliveries || {}).reduce((s, v) => s + v, 0)
   const total        = itemsTotal + deliveryShare + restDelTotal
@@ -24,12 +24,15 @@ export default function CostCard({ name, lines, deliveryShare, restDeliveries, s
         </div>
         <div style={{ textAlign: 'left' }}>
           <div style={{ fontSize:22, fontWeight:900, color:C.primary }}>{fmt(total)}<span style={{ fontSize:12, marginRight:3 }}>ج</span></div>
+          <div style={{ fontSize:11, fontWeight:800, color: paid ? C.green : C.red }}>
+            {paid ? `مدفوع${paidAmount != null ? ` • ${fmt(paidAmount)} ج` : ''}` : 'غير مدفوع'}
+          </div>
         </div>
       </div>
       
       <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 12, padding: '10px 14px' }}>
         {(lines || []).map((l, i) => {
-          const b = BREAD.find(x => x.id === l.bt)
+          const b = breadTypes.find(x => x.id === l.bt)
           return (
             <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom: i < lines.length - 1 ? `1px solid rgba(0,0,0,0.05)` : 'none' }}>
               <div style={{ fontSize:14, color:C.dark, fontWeight: 600 }}>

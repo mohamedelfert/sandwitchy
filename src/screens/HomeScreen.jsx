@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Plus, Copy, Check, Users, ShoppingBag, Coffee, ArrowRight, X, ArrowLeft } from 'lucide-react'
 import { C, FONT } from '../constants/colors.js'
-import { DRINKS, EMOJIS } from '../constants/data.js'
+import { EMOJIS } from '../constants/data.js'
 import { inpSt } from '../utils/helpers.js'
 import Modal from '../components/Modal.jsx'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import Countdown from '../components/Countdown.jsx'
 
-export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, allOrders, isEditing, deadline, sessStatus, onGoMenu, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit }) {
+export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, onGoMenu, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit }) {
   const [copied,      setCopied]      = useState('')
   const [addRestOpen, setAddRestOpen] = useState(false)
   const [nRest,       setNRest]       = useState({ name:'', emoji:'🥙', hasBread:true, delivery:'' })
@@ -64,7 +64,7 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
           <ShoppingBag size={18} color={C.primary}/> اختار المطعم
         </div>
         
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:14 }}>
+        <div className="rest-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:14 }}>
           {rests.map(r => {
             const cnt = lines.filter(l=>l.rid===r.id).reduce((s,l)=>s+l.qty,0)
             return (
@@ -117,10 +117,10 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
           </div>
           
           <div className="glass-card" style={{ overflow:'hidden' }}>
-            {DRINKS.map((d,idx) => {
+            {drinkTypes.map((d,idx) => {
               const q = drinks[d.id]||0
               return (
-                <div key={d.id} style={{ display:'flex', alignItems:'center', padding:'14px 18px', background:q>0?`${C.green}05`:'transparent', borderBottom:idx<DRINKS.length-1?`1px solid var(--border)`:'none', transition:'all 0.2s' }}>
+                <div key={d.id} style={{ display:'flex', alignItems:'center', padding:'14px 18px', background:q>0?`${C.green}05`:'transparent', borderBottom:idx<drinkTypes.length-1?`1px solid var(--border)`:'none', transition:'all 0.2s' }}>
                   <span style={{ fontSize:24, marginLeft:14, flexShrink:0 }}>{d.emoji}</span>
                   <span style={{ fontSize:16, fontWeight:800, color:q>0?C.green:C.dark, flex:1 }}>{d.name}</span>
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -131,6 +131,11 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
                 </div>
               )
             })}
+            {drinkTypes.length === 0 && (
+              <div style={{ padding:'18px', textAlign:'center', color:C.muted, fontWeight:700, fontSize:13 }}>
+                لا توجد مشروبات مضافة حالياً
+              </div>
+            )}
           </div>
         </div>
       </div>

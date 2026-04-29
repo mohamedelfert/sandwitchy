@@ -36,7 +36,7 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
       </div>
 
       <div style={{ padding:'24px 18px', maxWidth: 900, margin:'0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 24, alignItems: 'start' }}>
+        <div className="orders-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 24, alignItems: 'start' }}>
           
           <div>
             {/* Your Order Summary */}
@@ -63,8 +63,13 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
                 </div>
                 
                 <div style={{ padding: '16px 20px', background: C.tag, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <span style={{ fontSize: 13, fontWeight: 800, color: C.muted }}>إجمالي المنيو</span>
-                   <span style={{ fontSize: 18, fontWeight: 950, color: C.primary }}>{(myOrder.lines||[]).reduce((s,l)=>s+(l.price||0)*l.qty,0)} ج</span>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.muted }}>إجمالي المنيو</span>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: myOrder.paid ? C.green : C.red, marginTop: 4 }}>
+                      {myOrder.paid ? '✅ مدفوع' : '⏳ لسه متسجل غير مدفوع'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 18, fontWeight: 950, color: C.primary }}>{(myOrder.lines||[]).reduce((s,l)=>s+(l.price||0)*l.qty,0)} ج</span>
                 </div>
               </div>
             )}
@@ -98,7 +103,7 @@ export default function SubmittedScreen({ sessionId, userName, allOrders, sessSt
             </div>
 
             <div className="glass-card" style={{ padding: 18, marginBottom: 24, background: C.purpleLight, border: `1.5px solid ${C.purple}22` }}>
-               <div style={{ fontSize:12, fontWeight:800, color:C.purple, marginBottom:12 }}>⚠️ رابط الأدمن (للمسؤول فقط)</div>
+               <div style={{ fontSize:12, fontWeight:800, color:C.purple, marginBottom:12 }}>⚠️ رابط الأدمن (للمسؤول فقط بعد تسجيل الدخول)</div>
                <Btn onClick={() => copyText(adminLink(), 'admin')} style={{ width: '100%', background: copied === 'admin' ? C.green : C.purple }}>
                   <Eye size={18}/>
                   <span style={{ marginRight: 8 }}>{copied === 'admin' ? 'تم النسخ!' : 'نسخ رابط الإدارة'}</span>

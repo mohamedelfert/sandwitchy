@@ -107,3 +107,263 @@ body {
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* Responsive Breakpoints */
+/* Mobile First - Default styles for phones */
+
+/* Small phones */
+@media screen and (max-width: 374px) {
+  :root { --radius: 16px; }
+  .glass-card { border-radius: 16px; }
+}
+
+/* Large phones / Small tablets */
+@media screen and (min-width: 375px) and (max-width: 767px) {
+  :root { --radius: 20px; }
+}
+
+/* Tablets */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  :root { --radius: 24px; }
+  body { max-width: 800px; margin: 0 auto; }
+  .container { max-width: 720px; margin: 0 auto; }
+}
+
+/* Desktop */
+@media screen and (min-width: 1024px) {
+  :root { --radius: 28px; }
+  body { max-width: 1000px; margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.1); }
+  .glass-card { border-radius: 28px; }
+  .glass-header { border-radius: 0 0 28px 28px; }
+}
+
+/* Responsive text sizes */
+@media screen and (max-width: 767px) {
+  html { font-size: 14px; }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  html { font-size: 15px; }
+}
+
+@media screen and (min-width: 1024px) {
+  html { font-size: 16px; }
+}
+
+/* Responsive grid layouts */
+.grid-responsive {
+  display: grid;
+  gap: 1rem;
+}
+@media screen and (max-width: 767px) {
+  .grid-responsive { grid-template-columns: 1fr; }
+}
+@media screen and (min-width: 768px) {
+  .grid-responsive { grid-template-columns: repeat(2, 1fr); }
+}
+@media screen and (min-width: 1024px) {
+  .grid-responsive { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Responsive flex utilities */
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+
+@media screen and (max-width: 767px) {
+  .flex-col-mobile { flex-direction: column; }
+  .flex-row-mobile { flex-direction: row; }
+}
+
+/* Responsive padding */
+.p-responsive { padding: 1rem; }
+@media screen and (min-width: 768px) {
+  .p-responsive { padding: 1.5rem; }
+}
+@media screen and (min-width: 1024px) {
+  .p-responsive { padding: 2rem; }
+}
+
+/* Responsive margins */
+.m-auto { margin: auto; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* Responsive width utilities */
+.w-full { width: 100%; }
+.w-auto { width: auto; }
+.max-w-sm { max-width: 400px; }
+.max-w-md { max-width: 600px; }
+.max-w-lg { max-width: 800px; }
+.max-w-xl { max-width: 1000px; }
+.max-w-full { max-width: 100%; }
+
+@media screen and (max-width: 767px) {
+  .max-w-sm { max-width: 100%; }
+  .max-w-md { max-width: 100%; }
+  .max-w-lg { max-width: 100%; }
+}
+
+/* Responsive text alignment */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+@media screen and (max-width: 767px) {
+  .text-center-mobile { text-align: center; }
+  .text-right-mobile { text-align: right; }
+}
+
+/* Responsive hiding */
+.hide { display: none; }
+.show { display: block; }
+
+@media screen and (max-width: 767px) {
+  .hide-mobile { display: none !important; }
+}
+@media screen and (min-width: 768px) {
+  .show-mobile { display: none !important; }
+}
+
+@media screen and (max-width: 1023px) {
+  .hide-tablet { display: none !important; }
+}
+@media screen and (min-width: 1024px) {
+  .show-tablet { display: none !important; }
+}
+
+/* Responsive button sizes */
+.btn-responsive {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  height: auto;
+  min-height: 44px;
+}
+
+@media screen and (min-width: 768px) {
+  .btn-responsive {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    min-height: 52px;
+  }
+}
+
+/* Responsive input sizes */
+.input-responsive {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  height: 44px;
+}
+
+@media screen and (min-width: 768px) {
+  .input-responsive {
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    height: 52px;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (hover: none) and (pointer: coarse) {
+  button, input, select, textarea {
+    min-height: 44px;
+  }
+  button { min-width: 44px; min-height: 44px; }
+  a { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* Safe area for notched devices */
+.safe-area-top { padding-top: env(safe-area-inset-top); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-area-left { padding-left: env(safe-area-inset-left); }
+.safe-area-right { padding-right: env(safe-area-inset-right); }
+
+/* Admin responsive grid */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media screen and (min-width: 768px) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+/* Order cards responsive */
+.orders-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media screen and (min-width: 480px) {
+  .orders-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .orders-grid {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  }
+}
+
+/* Restaurant cards responsive */
+.rest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.875rem;
+}
+
+@media screen and (min-width: 480px) {
+  .rest-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* Stats cards responsive */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media screen and (min-width: 480px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Action buttons responsive */
+.actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media screen and (min-width: 480px) {
+  .actions-row {
+    flex-direction: row;
+  }
+}
+
+/* Form responsive */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media screen and (min-width: 480px) {
+  .form-row {
+    flex-direction: row;
+  }
+}
+
+/* Landscape orientation warning */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .landscape-warning { display: block; }
+  body { min-height: 100vh; overflow-y: auto; }
+}
+

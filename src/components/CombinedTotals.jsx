@@ -1,19 +1,20 @@
 import { C } from '../constants/colors.js'
 import { BREAD } from '../constants/data.js'
 
-export default function CombinedTotals({ allOrders }) {
+export default function CombinedTotals({ allOrders, breadTypes = BREAD }) {
   const combined = {}
-  ;[...BREAD.map(b => b.id), 'none'].forEach(g => { combined[g] = {} })
+  ;[...breadTypes.map(b => b.id), 'none'].forEach(g => { combined[g] = {} })
   Object.values(allOrders).forEach(o => {
     (o.lines || []).forEach(l => {
       const g = l.bt || 'none'
+      if (!combined[g]) combined[g] = {}
       if (!combined[g][l.iname]) combined[g][l.iname] = { name: l.iname, qty: 0 }
       combined[g][l.iname].qty += l.qty
     })
   })
   
   const groups = [
-    ...BREAD.map(b => ({ id:b.id, ar:b.ar, color:b.color, light:b.light })),
+    ...breadTypes.map(b => ({ id:b.id, ar:b.ar, color:b.color, light:b.light })),
     { id:'none', ar:'بدون عيش', color:C.primary, light:C.primaryLight },
   ]
 

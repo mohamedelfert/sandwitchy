@@ -14,6 +14,7 @@ import CompleteScreen  from './CompleteScreen.jsx'
 const LAST_ORDER_KEY = 'sandwitchy_last_order'
 const USER_NAME_KEY  = 'sandwitchy_user_name'
 const PHONE_KEY      = 'sandwitchy_user_phone'
+const TELEGRAM_KEY   = 'sandwitchy_user_telegram'
 
 function saveLastOrder(lines, drinks, notes) {
   try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ lines, drinks, notes, savedAt: Date.now() })) } catch(_) {}
@@ -33,6 +34,12 @@ function saveStoredPhone(phone) {
 function loadStoredPhone() {
   try { return localStorage.getItem(PHONE_KEY) || '' } catch(_) { return '' }
 }
+function saveStoredTelegram(telegram) {
+  try { localStorage.setItem(TELEGRAM_KEY, telegram) } catch(_) {}
+}
+function loadStoredTelegram() {
+  try { return localStorage.getItem(TELEGRAM_KEY) || '' } catch(_) { return '' }
+}
 
 export default function UserApp() {
   const [sessionId,    setSessionId]    = useState(null)
@@ -47,9 +54,10 @@ export default function UserApp() {
   const [submitError,  setSubmitError]  = useState('')
   const [submitting,   setSubmitting]   = useState(false)
   const [isEditing,    setIsEditing]    = useState(false)
-  const [telegramUser, setTelegramUser] = useState('')
+  const [telegramUser, setTelegramUser] = useState(() => loadStoredTelegram())
   const [phoneUser,    setPhoneUser]    = useState(() => loadStoredPhone())
   const [breadTypes,   setBreadTypes]   = useState([])
+  const [drinkTypes,   setDrinkTypes]   = useState([])
 
   const [rests,     setRests]     = useState(INIT_RESTS)
   const [lines,     setLines]     = useState([])
@@ -68,7 +76,7 @@ export default function UserApp() {
     api.getSettings().then(s => {
       if (s.bread_types) setBreadTypes(s.bread_types)
       if (s.rests) setRests(s.rests)
-      if (s.drinks) localStorage.setItem('sandwitchy_drinks', JSON.stringify(s.drinks))
+      if (s.drinks) setDrinkTypes(s.drinks)
     })
   }, [])
 
@@ -127,16 +135,6 @@ export default function UserApp() {
     setScreen('name')
   }
 
-  const goBack = () => {
-    if (sessionId) {
-      const url = new URL(window.location.origin)
-      url.searchParams.delete('s')
-      window.history.replaceState({}, '', url)
-    }
-    setSessionId(null)
-    setScreen('welcome')
-  }
-
   // ── Load existing order for editing ──
   const startEditing = () => {
     const myOrder = Object.values(allOrders).find(o => o.name === userName)
@@ -169,14 +167,6 @@ export default function UserApp() {
       if (!res.ok) throw new Error(`${res.status}`)
       const json = await res.json()
       if (!json.ok) throw new Error('rejected')
-      
-      // auto-set delivery from restaurant fee if not set
-      if (delivery === 0) {
-        const restDelivery = [...new Set(lines.map(l=>l.rid))].reduce((max,rid) => {
-          return Math.max(max, rests.find(x=>x.id===rid)?.delivery||0)
-        }, 0)
-        if (restDelivery > 0) await api.setDelivery(sessionId, restDelivery)
-      }
 
       saveLastOrder(lines, drinks, notes)
       setIsEditing(false)
@@ -207,10 +197,14 @@ export default function UserApp() {
 <NameScreen
            sessionId={sessionId}
            hasLastOrder={hasLastOrder}
+           initialName={userName}
+           initialPhone={phoneUser}
+           initialTelegram={telegramUser}
            onConfirm={(name,tg,ph,hist) => { 
              setUserName(name); 
              saveStoredName(name); 
-             setTelegramUser(tg || ''); 
+              setTelegramUser(tg || ''); 
+             saveStoredTelegram(tg || '');
              setPhoneUser(ph || '');
              saveStoredPhone(ph || '');
              if (hist) {
@@ -228,6 +222,7 @@ export default function UserApp() {
              setUserName(name); 
              saveStoredName(name); 
              setTelegramUser(tg); 
+             saveStoredTelegram(tg || '');
              setPhoneUser(ph);
              saveStoredPhone(ph);
              repeatLastOrder() 
@@ -238,7 +233,7 @@ export default function UserApp() {
       {screen==='home' && (
         <HomeScreen
           userName={userName} sessionId={sessionId} rests={rests} setRests={setRests}
-          lines={lines} drinks={drinks} allOrders={allOrders} isEditing={isEditing}
+          lines={lines} drinks={drinks} drinkTypes={drinkTypes} allOrders={allOrders} isEditing={isEditing}
           deadline={deadline} sessStatus={sessStatus}
           onGoMenu={rid => { setActiveRid(rid); setScreen('menu') }}
           onSubmit={submitOrder} submitting={submitting} submitError={submitError}
@@ -268,7 +263,7 @@ export default function UserApp() {
       {screen==='summary' && (
         <SummaryScreen
           sessionId={sessionId} allOrders={allOrders} delivery={delivery}
-          rests={rests} sessStatus={sessStatus} deadline={deadline}
+          rests={rests} drinkTypes={drinkTypes} breadTypes={breadTypes} sessStatus={sessStatus} deadline={deadline}
           onBack={() => setScreen('submitted')} onEditOrder={startEditing}
         />
       )}
