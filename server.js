@@ -1693,6 +1693,55 @@ app.delete('/api/admin/menu/bread/:id', requireAdmin, (req, res) => {
   res.json({ ok: true, bread_types: types })
 })
 
+// ── Admin Menu CRUD: drinks ────────────────────────────────────────
+app.post('/api/admin/menu/drink', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateDrink(body, { partial: false })
+  if (err) return res.status(400).json(err)
+  const drink = {
+    id: newMenuId(),
+    name: body.name.trim(),
+    emoji: typeof body.emoji === 'string' ? body.emoji : '🥤',
+    available: body.available === false ? false : true,
+  }
+  const drinks = getDrinks()
+  drinks.push(drink)
+  setDrinksValue(drinks)
+  res.json({ ok: true, drink, drinks })
+})
+
+app.put('/api/admin/menu/drink/:id', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateDrink(body, { partial: true })
+  if (err) return res.status(400).json(err)
+  const drinks = getDrinks()
+  const idx = drinks.findIndex(d => String(d.id) === String(req.params.id))
+  if (idx === -1) return res.status(404).json({ ok: false, error: 'not_found' })
+  const allowed = ['name', 'emoji', 'available']
+  const patch = {}
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      patch[k] = k === 'name' ? body.name.trim()
+              : k === 'available' ? !!body[k]
+              : body[k]
+    }
+  }
+  drinks[idx] = { ...drinks[idx], ...patch }
+  setDrinksValue(drinks)
+  res.json({ ok: true, drink: drinks[idx] })
+})
+
+app.delete('/api/admin/menu/drink/:id', requireAdmin, (req, res) => {
+  const id = req.params.id
+  const refs = findReferencingSessions({ drinkId: id })
+  if (refs.length > 0) {
+    return res.status(409).json({ ok: false, error: 'in_use', sessions: refs })
+  }
+  const drinks = getDrinks().filter(d => String(d.id) !== String(id))
+  setDrinksValue(drinks)
+  res.json({ ok: true, drinks })
+})
+
 function saveVote(sid, uid, name, rid) {
   if (!db) return
   db.prepare(`INSERT OR REPLACE INTO votes (sid, uid, name, rid) VALUES (?, ?, ?, ?)`).run(sid, uid, name, rid)
