@@ -311,6 +311,8 @@ export default function UserApp() {
           promoCode={promoCode}
           promoDiscount={promoDiscount}
           onApplyPromo={handleApplyPromo}
+          phone={phoneUser}
+          telegram={telegramUser}
         />
       )}
       

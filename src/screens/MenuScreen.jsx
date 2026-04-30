@@ -85,20 +85,27 @@ export default function MenuScreen({ activeRest, lines, notes, totalItems, bread
           </div>
         )}
 
-        {/* Bread Selection Tabs - Sticky */}
+        {/* Bread Selection Tabs - Sticky - IMPROVED CLARITY */}
         {activeRest.hasBread && (
-          <div style={{ position:'sticky', top:70, zIndex:100, background:'rgba(255,255,255,0.9)', backdropFilter:'blur(10px)', padding:'15px 0', margin:'0 -18px', display:'flex', justifyContent:'center', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-            <div style={{ display:'flex', background: 'rgba(0,0,0,0.05)', borderRadius: 16, padding: 4, gap: 4 }}>
+          <div style={{ position:'sticky', top:70, zIndex:100, background:'rgba(255,255,255,0.95)', backdropFilter:'blur(10px)', padding:'12px 0', margin:'0 -18px', display:'flex', flexDirection:'column', alignItems:'center', borderBottom:'2px solid rgba(0,0,0,0.08)', boxShadow:'0 2px 8px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:C.muted, marginBottom:8, textTransform:'uppercase', letterSpacing:0.5 }}>🍞 اختار نوع العيش</div>
+            <div style={{ display:'flex', background: 'rgba(0,0,0,0.05)', borderRadius: 16, padding: 6, gap: 6 }}>
               {activeBreadList.map(b => (
                 <button 
                   key={b.id} 
                   onClick={() => setActiveB(b.id)}
                   style={{
-                    border: 'none', borderRadius: 12, padding: '8px 16px', fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                    border: activeB === b.id ? `2px solid ${b.color}` : '2px solid transparent',
+                    borderRadius: 14, 
+                    padding: '10px 18px', 
+                    fontSize: 14, 
+                    fontWeight: 900, 
+                    cursor: 'pointer',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     background: activeB === b.id ? b.color : 'transparent',
-                    color: activeB === b.id ? '#FFF' : C.muted,
-                    boxShadow: activeB === b.id ? `0 4px 12px ${b.color}44` : 'none'
+                    color: activeB === b.id ? '#FFF' : C.dark,
+                    boxShadow: activeB === b.id ? `0 6px 16px ${b.color}50` : 'none',
+                    transform: activeB === b.id ? 'scale(1.05)' : 'scale(1)'
                   }}
                 >
                   {b.ar}
@@ -186,7 +193,7 @@ export default function MenuScreen({ activeRest, lines, notes, totalItems, bread
         </div>
       </div>
 
-      {/* Floating Action Bar */}
+      {/* Floating Action Bar - WITH DELIVERY FEE */}
       {totalItems>0 && (
         <div style={{ position:'fixed', bottom:20, left:20, right:20, zIndex:200 }} className="animate-fade-in">
           <div className="glass-card" style={{ padding:'12px', display:'flex', gap:12, alignItems:'center', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: `1px solid ${C.primary}33`, boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
@@ -194,6 +201,12 @@ export default function MenuScreen({ activeRest, lines, notes, totalItems, bread
               <span style={{ fontSize:24, fontWeight:950 }}>{totalItems}</span>
               <span style={{ fontSize:14, fontWeight:700 }}>صنف</span>
             </div>
+            {activeRest?.delivery > 0 && (
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'0 12px', borderLeft:`1px solid ${C.border}`, color:C.muted, fontSize:12, fontWeight:700 }}>
+                <Truck size={14}/>
+                <span>{activeRest.delivery} ج</span>
+              </div>
+            )}
             <Btn onClick={onBack} style={{ flex:1, height:54, borderRadius: 14 }}>
               استكمال الطلب ←
             </Btn>

@@ -4,14 +4,16 @@ import { C, FONT } from '../constants/colors.js'
 import { EMOJIS } from '../constants/data.js'
 import { inpSt } from '../utils/helpers.js'
 import Modal from '../components/Modal.jsx'
+import OrderPreviewModal from '../components/OrderPreviewModal.jsx'
 import { Btn, GhostBtn } from '../components/Btn.jsx'
 import Countdown from '../components/Countdown.jsx'
 import RestaurantStatusBoard from '../components/RestaurantStatusBoard.jsx'
 
-export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, sessionTitle = '', announcement = '', expected = [], restaurantStatuses = {}, onGoMenu, onGoVote, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit, onOpenProfile, searchQuery, onSearchChange, promoCode, promoDiscount, onApplyPromo }) {
+export default function HomeScreen({ userName, sessionId, rests, setRests, lines, drinks, drinkTypes = [], allOrders, isEditing, deadline, sessStatus, sessionTitle = '', announcement = '', expected = [], restaurantStatuses = {}, onGoMenu, onGoVote, onSubmit, submitting, submitError, onDrinkAdd, onDrinkSub, onCancelEdit, onOpenProfile, searchQuery, onSearchChange, promoCode, promoDiscount, onApplyPromo, phone = '', telegram = '' }) {
   const [copied,      setCopied]      = useState('')
   const [addRestOpen, setAddRestOpen] = useState(false)
   const [nRest,       setNRest]       = useState({ name:'', emoji:'🥙', hasBread:true, delivery:'' })
+  const [showPreview, setShowPreview]   = useState(false)
 
   const totalItems  = lines.reduce((s,l) => s+l.qty, 0)
   const totalDrinks = Object.values(drinks).reduce((s,q) => s+q, 0)
@@ -54,13 +56,13 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
           </div>
         </div>
         
-        {/* Search Bar */}
+        {/* Search Bar - WITH RESULTS COUNTER */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <input
             type="text"
             value={searchQuery}
             onChange={e => onSearchChange?.(e.target.value)}
-            placeholder="🔍 Search restaurants or dishes..."
+            placeholder="🔍 ابحث عن المطاعم أو الأصناف..."
             style={{
               width: '100%',
               padding: '10px 14px 10px 38px',
@@ -79,6 +81,34 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
               onClick={() => onSearchChange?.('')}
               style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: C.tag, borderRadius: 8, padding: 2, cursor: 'pointer', color: C.muted, fontSize: 12 }}
             >✕</button>
+          )}
+          
+          {/* NEW: Search results counter */}
+          {searchQuery && (
+            <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: C.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {searchQuery && (
+                <>
+                  {rests.filter(r => 
+                    r.name.includes(searchQuery) || 
+                    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.items?.some(item => 
+                      item.name.includes(searchQuery) || 
+                      item.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                  ).length === 0 ? (
+                    <>
+                      <span>🚫</span>
+                      <span>لم نجد نتائج لـ "{searchQuery}"</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✅</span>
+                      <span>وجدنا {rests.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())).length} مطاعم</span>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
         
@@ -191,6 +221,7 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
                 <div style={{ textAlign:'center' }}>
                   <div style={{ fontSize:15, fontWeight:900, color:C.dark, lineHeight:1.2 }}>{r.name}</div>
                   {r.delivery>0 && <div style={{ fontSize:11, color:C.green, fontWeight:800, marginTop:4 }}>🚗 {r.delivery} ج توصيل</div>}
+                  <div style={{ fontSize:10, color:C.muted, fontWeight:600, marginTop:2 }}>📋 {r.items?.length || 0} أصناف</div>
                 </div>
               </div>
             )
@@ -274,7 +305,7 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
                 </div>
               </div>
               
-              <Btn onClick={onSubmit} loading={submitting} disabled={!hasAnything||isExpired}
+              <Btn onClick={() => setShowPreview(true)} loading={submitting} disabled={!hasAnything||isExpired}
                 style={{ flex:1, height: 56, background: isEditing ? C.accent : C.gradGreen }}>
                 {isEditing ? 'حفظ التعديلات' : 'إرسال الطلب الآن'} <ArrowRight size={20} style={{ marginRight: 8 }}/>
               </Btn>
@@ -329,6 +360,25 @@ export default function HomeScreen({ userName, sessionId, rests, setRests, lines
             + أضف المطعم للمجموعة
           </Btn>
         </Modal>
+      )}
+
+      {/* Order Preview Modal */}
+      {showPreview && (
+        <OrderPreviewModal
+          lines={lines}
+          drinks={drinks}
+          drinkTypes={drinkTypes}
+          delivery={delivery}
+          rests={rests}
+          userName={userName}
+          phone={phone}
+          telegram={telegram}
+          onConfirm={() => {
+            setShowPreview(false)
+            onSubmit()
+          }}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   )
