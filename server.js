@@ -468,6 +468,115 @@ function updateSettingValue(key, value) {
   `).run(key, JSON.stringify(value))
 }
 
+// ── Admin menu management helpers ───────────────────────────────────
+function newMenuId() {
+  return crypto.randomUUID()
+}
+
+function getRests()       { return getSettingValue('rests', DEFAULT_RESTS) }
+function getBreadTypes()  { return getSettingValue('bread_types', DEFAULT_BREAD_TYPES) }
+function getDrinks()      { return getSettingValue('drinks', DEFAULT_DRINKS) }
+function setRestsValue(value)      { updateSettingValue('rests', value) }
+function setBreadTypesValue(value) { updateSettingValue('bread_types', value) }
+function setDrinksValue(value)     { updateSettingValue('drinks', value) }
+
+const MENU_NAME_MIN = 1
+const MENU_NAME_MAX = 60
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
+const HTTPS_URL_RE = /^https:\/\/.+/
+
+function validationError(field, message) {
+  return { ok: false, error: 'validation', field, message }
+}
+
+function validateName(value, field = 'name') {
+  if (typeof value !== 'string') return validationError(field, 'must be a string')
+  const trimmed = value.trim()
+  if (trimmed.length < MENU_NAME_MIN || trimmed.length > MENU_NAME_MAX) {
+    return validationError(field, `length must be ${MENU_NAME_MIN}-${MENU_NAME_MAX}`)
+  }
+  return null
+}
+
+function validateNumberRange(value, field, { min = 0, max = 99999 } = {}) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < min || n > max) {
+    return validationError(field, `must be a number between ${min} and ${max}`)
+  }
+  return null
+}
+
+function validateColor(value, field) {
+  if (typeof value !== 'string' || !HEX_COLOR_RE.test(value)) {
+    return validationError(field, 'must be #RRGGBB')
+  }
+  return null
+}
+
+function validateImageUrl(value, field = 'image') {
+  if (value === '' || value == null) return null
+  if (typeof value !== 'string' || !HTTPS_URL_RE.test(value)) {
+    return validationError(field, 'must be empty or an https:// URL')
+  }
+  return null
+}
+
+function validateVendor(input, { partial = false } = {}) {
+  const errors = []
+  const has = key => input != null && Object.prototype.hasOwnProperty.call(input, key)
+  if (!partial || has('name')) { const e = validateName(input.name, 'name'); if (e) errors.push(e) }
+  if (!partial || has('delivery')) { const e = validateNumberRange(input.delivery ?? 0, 'delivery'); if (e) errors.push(e) }
+  if (!partial || has('bg')) { if (input.bg != null) { const e = validateColor(input.bg, 'bg'); if (e) errors.push(e) } }
+  if (has('image')) { const e = validateImageUrl(input.image); if (e) errors.push(e) }
+  return errors[0] || null
+}
+
+function validateItem(input, { partial = false } = {}) {
+  const has = key => input != null && Object.prototype.hasOwnProperty.call(input, key)
+  if (!partial || has('name')) { const e = validateName(input.name, 'name'); if (e) return e }
+  if (!partial || has('price')) { const e = validateNumberRange(input.price ?? 0, 'price'); if (e) return e }
+  return null
+}
+
+function validateBread(input, { partial = false } = {}) {
+  const has = key => input != null && Object.prototype.hasOwnProperty.call(input, key)
+  if (!partial || has('ar')) { const e = validateName(input.ar, 'ar'); if (e) return e }
+  if (!partial || has('color')) { const e = validateColor(input.color, 'color'); if (e) return e }
+  if (has('light')) { const e = validateColor(input.light, 'light'); if (e) return e }
+  return null
+}
+
+function validateDrink(input, { partial = false } = {}) {
+  const has = key => input != null && Object.prototype.hasOwnProperty.call(input, key)
+  if (!partial || has('name')) { const e = validateName(input.name, 'name'); if (e) return e }
+  return null
+}
+
+// Returns array of open session ids that reference a vendor / item / bread / drink.
+function findReferencingSessions({ vendorId = null, itemId = null, breadId = null, drinkId = null }) {
+  const refs = []
+  const sids = getSessionIds({ openOnly: true })
+  for (const sid of sids) {
+    const orders = Object.values(getOrders(sid))
+    let referenced = false
+    for (const order of orders) {
+      const lines = order.lines || []
+      for (const line of lines) {
+        if (vendorId != null && String(line.rid) === String(vendorId)) { referenced = true; break }
+        if (itemId   != null && String(line.iid) === String(itemId))   { referenced = true; break }
+        if (breadId  != null && line.bt === breadId)                   { referenced = true; break }
+      }
+      if (!referenced && drinkId != null) {
+        const drinks = order.drinks || {}
+        if (drinks[drinkId] && drinks[drinkId] > 0) referenced = true
+      }
+      if (referenced) break
+    }
+    if (referenced) refs.push(sid)
+  }
+  return refs
+}
+
 // User management functions
 function createUser(username, password, { phone = '', telegram = '', email = '' } = {}) {
   const id = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
