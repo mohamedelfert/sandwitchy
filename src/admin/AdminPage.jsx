@@ -96,7 +96,7 @@ export default function AdminPage() {
   const [sessionFilter, setSessionFilter] = useState('')
   const [sessions, setSessions] = useState([])
   const [sessionsLoading, setSessionsLoading] = useState(false)
-  const [activeAdminTab, setActiveAdminTab] = useState('sessions') // 'sessions', 'analytics', 'promo', 'status', 'settings'
+  const [activeAdminTab, setActiveAdminTab] = useState('sessions')
   const [allOrders, setAllOrders] = useState({})
   const [delivery, setDelivery] = useState(0)
   const [deliveryInput, setDeliveryInput] = useState('')
@@ -127,17 +127,13 @@ export default function AdminPage() {
   const [bulkPayLoading, setBulkPayLoading] = useState('')
   const [sessionVotes, setSessionVotes] = useState({})
 
-  // Promo code admin states
   const [promoCodes, setPromoCodes] = useState([])
   const [showPromoForm, setShowPromoForm] = useState(false)
-  const [newPromo, setNewPromo] = useState({ 
-    code: '', discount_type: 'percent', value: '', min_amount: 0, max_uses: '', expires_at: '', active: true 
+  const [newPromo, setNewPromo] = useState({
+    code: '', discount_type: 'percent', value: '', min_amount: 0, max_uses: '', expires_at: '', active: true
   })
 
-  // Analytics states
   const [analytics, setAnalytics] = useState({ stats: null, loading: false })
-
-  // Order status management
   const [statusFilter, setStatusFilter] = useState('all')
 
   const evtRef = useRef(null)
@@ -188,6 +184,7 @@ export default function AdminPage() {
     }
   }
 
+  // FIX 1: removed the duplicate closing brace that was here
   const refreshAdminSessions = async () => {
     try {
       setSessionsLoading(true)
@@ -197,7 +194,7 @@ export default function AdminPage() {
         sid ? api.getSession(sid) : Promise.resolve({}),
         api.getAdminPromoCodes()
       ])
-      
+
       if (sessionsRes.ok) setSessions(sessionsRes.sessions || [])
       if (settingsRes.ok) {
         setBreadTypes(settingsRes.bread_types || [])
@@ -207,12 +204,11 @@ export default function AdminPage() {
       if (ordersRes.ok) {
         setAllOrders(ordersRes.orders || {})
         setDelivery(ordersRes.delivery || 0)
-        setSessStatus(ordersRes.status || 'open')
-        setDeadline(ordersRes.deadline)
-        setExpected(ordersRes.expected || [])
+        setStatus(ordersRes.status || 'open')
+        setDeadlineState(ordersRes.deadline)
+        setExpectedState(ordersRes.expected || [])
         setSessionTitle(ordersRes.title || '')
         setAnnouncement(ordersRes.announcement || '')
-        setRestaurantStatuses(ordersRes.restaurantStatuses || {})
       }
       if (promoCodesRes.ok) setPromoCodes(promoCodesRes.promos || [])
     } catch (error) {
@@ -220,7 +216,6 @@ export default function AdminPage() {
     } finally {
       setSessionsLoading(false)
     }
-  }
   }
 
   const refreshSettings = async () => {
@@ -365,7 +360,6 @@ export default function AdminPage() {
       await guarded(() => api.setDelivery(sid, parseFloat(deliveryInput) || 0))
       refreshAdminSessions()
     } catch (_) {
-      // handled centrally
     } finally {
       setSavingDel(false)
     }
@@ -402,7 +396,6 @@ export default function AdminPage() {
       await guarded(() => api.setSessionMeta(sid, { title: sessionTitle, announcement }))
       refreshAdminSessions()
     } catch (_) {
-      // handled centrally
     } finally {
       setSavingMeta(false)
     }
@@ -444,7 +437,6 @@ export default function AdminPage() {
       )
       refreshAdminSessions()
     } catch (_) {
-      // handled centrally
     } finally {
       setBulkPayLoading('')
     }
@@ -464,7 +456,6 @@ export default function AdminPage() {
       await guarded(() => api.updateSettings(key, value))
       refreshAdminSessions()
     } catch (_) {
-      // handled centrally
     } finally {
       setSavingSettings(false)
     }
@@ -687,12 +678,12 @@ export default function AdminPage() {
                       {copied === `session-${session.sid}` ? <Check size={16} color={C.green}/> : <Copy size={16}/>}
                     </GhostBtn>
                     {session.status === 'open' && (
-                      <button onClick={() => guarded(() => api.complete(session.sid)).then(() => refreshAdminSessions()).catch(() => {})} 
+                      <button onClick={() => guarded(() => api.complete(session.sid)).then(() => refreshAdminSessions()).catch(() => {})}
                         style={{ padding:'0 10px', height:44, background:C.green, color:'#FFF', border:'none', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer' }}>
                         إغلاق
                       </button>
                     )}
-                    <button onClick={() => { if(confirm(`حذف جلسة ${session.sid}؟`)) guarded(() => api.resetSession(session.sid)).then(() => refreshAdminSessions()).catch(() => {}) }} 
+                    <button onClick={() => { if(confirm(`حذف جلسة ${session.sid}؟`)) guarded(() => api.resetSession(session.sid)).then(() => refreshAdminSessions()).catch(() => {}) }}
                       style={{ padding:'0 10px', height:44, background:C.redLight, color:C.red, border:'none', borderRadius:12, fontSize:12, fontWeight:800, cursor:'pointer' }}>
                       حذف
                     </button>
@@ -706,337 +697,348 @@ export default function AdminPage() {
     )
   }
 
-      <div style={{ padding:'24px', maxWidth:1300, margin:'0 auto' }}>
-        {usingDefaults && (
-          <div style={{ background:'#FEF3C7', color:'#92400E', borderRadius:16, padding:'14px 18px', fontSize:13, fontWeight:800, marginBottom:20 }}>
-            تنبيه أمان: غيّر بيانات الدخول الافتراضية ومتغير `ADMIN_SESSION_SECRET` قبل أي استخدام خارجي.
-          </div>
-        )}
-
-        {/* Admin Tabs Navigation */}
-        <div style={{ padding:'0 24px 16px', borderBottom: `1px solid ${C.border}`, display:'flex', gap:4, overflowX:'auto', flexWrap:'nowrap', marginBottom:24 }}>
-          {[
-            { id: 'sessions', label: 'الجلسات', icon: Users },
-            { id: 'analytics', label: 'إحصائيات', icon: FileText },
-            { id: 'promo', label: 'كوبونات', icon: Wallet },
-            { id: 'status', label: 'حالة الطلبات', icon: Clock },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveAdminTab(tab.id)}
-              style={{
-                display:'flex',
-                alignItems:'center',
-                gap:6,
-                padding:'10px 18px',
-                border:'none',
-                borderRadius:12,
-                background: activeAdminTab === tab.id ? C.primary : 'transparent',
-                color: activeAdminTab === tab.id ? '#FFF' : C.muted,
-                fontWeight:700,
-                fontSize:13,
-                cursor:'pointer',
-                whiteSpace:'nowrap',
-                transition:'all 0.2s'
-              }}
-            >
-              <tab.icon size={16}/>
-              {tab.label}
-            </button>
-          ))}
+  // FIX 2: added the missing return ( for the main session view
+  return (
+    <div style={{ padding:'24px', maxWidth:1300, margin:'0 auto' }}>
+      {usingDefaults && (
+        <div style={{ background:'#FEF3C7', color:'#92400E', borderRadius:16, padding:'14px 18px', fontSize:13, fontWeight:800, marginBottom:20 }}>
+          تنبيه أمان: غيّر بيانات الدخول الافتراضية ومتغير `ADMIN_SESSION_SECRET` قبل أي استخدام خارجي.
         </div>
+      )}
 
-        {/* Tab Panels */}
-        {activeAdminTab === 'sessions' && (
-          <>
-            <div className="glass-card" style={{ padding:18, marginBottom:20 }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr auto', gap:10, alignItems:'start' }}>
-                <input
-                  type="text"
-                  placeholder="عنوان الجلسة"
-                  value={sessionTitle}
-                  onChange={e => setSessionTitle(e.target.value)}
-                  style={inpSt({ height:46 })}
-                />
-                <textarea
-                  placeholder="إعلان أو ملاحظة تظهر لكل المستخدمين"
-                  value={announcement}
-                  onChange={e => setAnnouncement(e.target.value)}
-                  style={{ ...inpSt({ minHeight: 84, resize: 'vertical' }) }}
-                />
-                <Btn onClick={saveSessionMeta} loading={savingMeta} style={{ minWidth:120, height:46, boxShadow:'none' }}>
-                  <Save size={16}/> حفظ
-                </Btn>
-              </div>
+      {/* Admin Tabs Navigation */}
+      <div style={{ padding:'0 24px 16px', borderBottom: `1px solid ${C.border}`, display:'flex', gap:4, overflowX:'auto', flexWrap:'nowrap', marginBottom:24 }}>
+        {[
+          { id: 'sessions', label: 'الجلسات', icon: Users },
+          { id: 'analytics', label: 'إحصائيات', icon: FileText },
+          { id: 'promo', label: 'كوبونات', icon: Wallet },
+          { id: 'status', label: 'حالة الطلبات', icon: Clock },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveAdminTab(tab.id)}
+            style={{
+              display:'flex',
+              alignItems:'center',
+              gap:6,
+              padding:'10px 18px',
+              border:'none',
+              borderRadius:12,
+              background: activeAdminTab === tab.id ? C.primary : 'transparent',
+              color: activeAdminTab === tab.id ? '#FFF' : C.muted,
+              fontWeight:700,
+              fontSize:13,
+              cursor:'pointer',
+              whiteSpace:'nowrap',
+              transition:'all 0.2s'
+            }}
+          >
+            <tab.icon size={16}/>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Panels */}
+      {activeAdminTab === 'sessions' && (
+        <>
+          <div className="glass-card" style={{ padding:18, marginBottom:20 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1.1fr 1.4fr auto', gap:10, alignItems:'start' }}>
+              <input
+                type="text"
+                placeholder="عنوان الجلسة"
+                value={sessionTitle}
+                onChange={e => setSessionTitle(e.target.value)}
+                style={inpSt({ height:46 })}
+              />
+              <textarea
+                placeholder="إعلان أو ملاحظة تظهر لكل المستخدمين"
+                value={announcement}
+                onChange={e => setAnnouncement(e.target.value)}
+                style={{ ...inpSt({ minHeight: 84, resize: 'vertical' }) }}
+              />
+              <Btn onClick={saveSessionMeta} loading={savingMeta} style={{ minWidth:120, height:46, boxShadow:'none' }}>
+                <Save size={16}/> حفظ
+              </Btn>
             </div>
+          </div>
 
-            <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginBottom:24 }}>
-          <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>عدد الأشخاص</div>
-            <div style={{ fontSize:32, fontWeight:950, color:C.primary }}>{numPeople}</div>
-          </div>
-          <div className="glass-card" style={{ padding:20, textAlign:'center', background:C.grad, color:'#FFF' }}>
-            <div style={{ fontSize:13, fontWeight:700, opacity:0.8, marginBottom:8 }}>إجمالي الحساب</div>
-            <div style={{ fontSize:32, fontWeight:950 }}>{fmt(getGrandTotal(allOrders, delivery))} <span style={{ fontSize:14 }}>ج</span></div>
-          </div>
-          <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>المحصّل / المتبقي</div>
-            <div style={{ fontSize:22, fontWeight:950, color:C.green }}>{fmt(paymentSummary.totalPaid)} ج</div>
-            <div style={{ fontSize:12, fontWeight:800, color: paymentSummary.remaining > 0 ? C.red : C.green }}>متبقي {fmt(paymentSummary.remaining)} ج</div>
-          </div>
-          <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>اللي لسه ماطلبوش</div>
-            <div style={{ fontSize:32, fontWeight:950, color: missingMembers.length > 0 ? C.red : C.green }}>{missingMembers.length}</div>
-          </div>
-        </div>
-
-        <div className="actions-row no-print" style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
-          {status === 'open' ? (
-            <Btn onClick={() => guarded(() => api.complete(sid)).then(refreshAdminSessions).catch(() => {})} color={C.gradAdmin} style={{ flex:1, minWidth:180, height:50 }}>
-              <CheckCircle size={18}/> تسليم الطلب
-            </Btn>
-          ) : (
-            <Btn onClick={() => guarded(() => api.reopen(sid)).then(refreshAdminSessions).catch(() => {})} color={C.accent} style={{ flex:1, minWidth:180, height:50 }}>
-              <RotateCcw size={18}/> إعادة فتح
-            </Btn>
-          )}
-          <Btn onClick={() => window.print()} color={C.dark} style={{ flex:1, minWidth:160, height:50 }}>
-            <Printer size={18}/> طباعة
-          </Btn>
-          <Btn onClick={() => { if(confirm('حذف هذه الجلسة؟ لا يمكن التراجع بعد الحذف.')) guarded(() => api.resetSession(sid)).then(leaveSession).catch(() => {}) }} color={C.red} style={{ flex:1, minWidth:160, height:50 }}>
-            <Trash2 size={18}/> حذف
-          </Btn>
-          <Btn onClick={() => downloadBlob(`talabati-${sid}.md`, generateMD(allOrders, delivery, sid, { breadTypes, drinkTypes: drinks, rests }), 'text/markdown;charset=utf-8')} color={C.primary} style={{ flex:1, minWidth:160, height:50 }}>
-            <FileText size={18}/> MD
-          </Btn>
-          <Btn onClick={() => downloadBlob(`talabati-${sid}.csv`, buildSessionCsv(allOrders, delivery), 'text/csv;charset=utf-8')} color={C.gradAdmin} style={{ flex:1, minWidth:160, height:50 }}>
-            <Download size={18}/> CSV
-          </Btn>
-          <GhostBtn onClick={() => setConfirmReset(true)} color={C.red} style={{ height:50, padding:'0 20px' }}>
-            <Trash2 size={18}/>
-          </GhostBtn>
-        </div>
-
-        <div className="admin-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 2fr) minmax(320px, 1fr)', gap:24, alignItems:'start' }}>
-          <div>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:16, flexWrap:'wrap' }}>
-              <div style={{ fontSize:16, fontWeight:900, color:C.dark }}>📋 قائمة الطلبات</div>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                <input
-                  type="text"
-                  placeholder="ابحث باسم / صنف / رقم"
-                  value={orderSearch}
-                  onChange={e => setOrderSearch(e.target.value)}
-                  style={{ ...inpSt({ width: 220, height: 40, fontSize: 13 }) }}
-                />
-                <GhostBtn onClick={() => setShowUnpaidOnly(value => !value)} color={showUnpaidOnly ? C.red : C.primary} style={{ height:40, justifyContent:'center' }}>
-                  {showUnpaidOnly ? 'عرض الكل' : 'غير المدفوع فقط'}
-                </GhostBtn>
-              </div>
+          <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginBottom:24 }}>
+            <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>عدد الأشخاص</div>
+              <div style={{ fontSize:32, fontWeight:950, color:C.primary }}>{numPeople}</div>
             </div>
-            {orders.length === 0 ? (
-              <div className="glass-card" style={{ textAlign:'center', padding:'60px 0' }}>
-                <div style={{ fontSize:48, marginBottom:16 }}>🍩</div>
-                <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>لسه مفيش حد طلب حاجة</p>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="glass-card" style={{ textAlign:'center', padding:'40px 0' }}>
-                <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>مفيش طلبات مطابقة للفلتر الحالي.</p>
-              </div>
+            <div className="glass-card" style={{ padding:20, textAlign:'center', background:C.grad, color:'#FFF' }}>
+              <div style={{ fontSize:13, fontWeight:700, opacity:0.8, marginBottom:8 }}>إجمالي الحساب</div>
+              <div style={{ fontSize:32, fontWeight:950 }}>{fmt(getGrandTotal(allOrders, delivery))} <span style={{ fontSize:14 }}>ج</span></div>
+            </div>
+            <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>المحصّل / المتبقي</div>
+              <div style={{ fontSize:22, fontWeight:950, color:C.green }}>{fmt(paymentSummary.totalPaid)} ج</div>
+              <div style={{ fontSize:12, fontWeight:800, color: paymentSummary.remaining > 0 ? C.red : C.green }}>متبقي {fmt(paymentSummary.remaining)} ج</div>
+            </div>
+            <div className="glass-card" style={{ padding:20, textAlign:'center' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:C.muted, marginBottom:8 }}>اللي لسه ماطلبوش</div>
+              <div style={{ fontSize:32, fontWeight:950, color: missingMembers.length > 0 ? C.red : C.green }}>{missingMembers.length}</div>
+            </div>
+          </div>
+
+          <div className="actions-row no-print" style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
+            {status === 'open' ? (
+              <Btn onClick={() => guarded(() => api.complete(sid)).then(refreshAdminSessions).catch(() => {})} color={C.gradAdmin} style={{ flex:1, minWidth:180, height:50 }}>
+                <CheckCircle size={18}/> تسليم الطلب
+              </Btn>
             ) : (
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(360px, 1fr))', gap:16 }}>
-                {filteredOrders.map(order => (
-                  <div key={order.uid} className="glass-card" style={{ overflow:'hidden' }}>
-                    <div style={{ padding:'14px 16px', background:`${order.paid ? C.green : C.primary}08`, display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid var(--border)' }}>
-                      <div style={{ width:38, height:38, borderRadius:10, background:order.paid ? C.gradAdmin : C.grad, color:'#FFF', fontWeight:900, fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {order.name[0]}
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:15, fontWeight:900, color:C.dark }}>{order.name}</div>
-                        <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>🕐 {formatTime(order.submittedAt)}</div>
-                      </div>
-                      <div style={{ display:'flex', gap:4 }}>
-                        <button onClick={() => setEditOrder({ uid:order.uid, name:order.name, lines:[...(order.lines || [])] })} style={{ width:30, height:30, borderRadius:8, background:C.tag, border:'none', color:C.primary, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          <Edit3 size={14}/>
-                        </button>
-                        <button onClick={() => deleteOrder(order.uid)} style={{ width:30, height:30, borderRadius:8, background:C.redLight, border:'none', color:C.red, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          <Trash2 size={14}/>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div style={{ padding:'14px 16px' }}>
-                      {(order.phone || order.telegram) && (
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:12 }}>
-                          {order.phone && <div style={{ background:C.tag, color:C.dark, borderRadius:999, padding:'6px 10px', fontSize:11, fontWeight:800 }}>📱 {order.phone}</div>}
-                          {order.telegram && <div style={{ background:C.tag, color:C.primary, borderRadius:999, padding:'6px 10px', fontSize:11, fontWeight:800 }}>@{order.telegram}</div>}
-                        </div>
-                      )}
-
-                      {(order.lines || []).map((line, index) => (
-                        <div key={index} style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:12 }}>
-                          <div style={{ fontSize:13, fontWeight:700 }}>
-                            {line.iname} <span style={{ color:C.muted, marginRight:4 }}>×{line.qty}</span>
-                            {order.notes?.[line.key] && <div style={{ fontSize:10, color:'#92400E', background:'#FEF9C3', borderRadius:6, padding:'1px 6px', marginTop:3 }}>📝 {order.notes[line.key]}</div>}
-                          </div>
-                          <span style={{ fontSize:13, fontWeight:800 }}>{line.price * line.qty} ج</span>
-                        </div>
-                      ))}
-
-                      <div style={{ borderTop:'1px dashed var(--border)', marginTop:10, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:C.muted }}>الإجمالي مع التوصيل</span>
-                        <span style={{ fontSize:16, fontWeight:950, color:C.primary }}>{fmt(getOrderTotal(order, perPerson))} ج</span>
-                      </div>
-
-                      <div style={{ display:'flex', gap:8, marginTop:12 }}>
-                        <Btn
-                          onClick={() => togglePaid(order)}
-                          color={order.paid ? C.red : C.gradAdmin}
-                          style={{ flex:1, height:42, fontSize:13, boxShadow:'none' }}
-                        >
-                          <Wallet size={15}/> {order.paid ? 'إلغاء الدفع' : 'تم الدفع'}
-                        </Btn>
-                        <div style={{ minWidth:112, background:order.paid ? C.greenLight : C.redLight, color:order.paid ? C.green : C.red, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:900 }}>
-                          {order.paid ? `مدفوع ${fmt(order.paidAmount ?? getOrderTotal(order, perPerson))} ج` : 'غير مدفوع'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Btn onClick={() => guarded(() => api.reopen(sid)).then(refreshAdminSessions).catch(() => {})} color={C.accent} style={{ flex:1, minWidth:180, height:50 }}>
+                <RotateCcw size={18}/> إعادة فتح
+              </Btn>
             )}
+            <Btn onClick={() => window.print()} color={C.dark} style={{ flex:1, minWidth:160, height:50 }}>
+              <Printer size={18}/> طباعة
+            </Btn>
+            <Btn onClick={() => { if(confirm('حذف هذه الجلسة؟ لا يمكن التراجع بعد الحذف.')) guarded(() => api.resetSession(sid)).then(leaveSession).catch(() => {}) }} color={C.red} style={{ flex:1, minWidth:160, height:50 }}>
+              <Trash2 size={18}/> حذف
+            </Btn>
+            <Btn onClick={() => downloadBlob(`talabati-${sid}.md`, generateMD(allOrders, delivery, sid, { breadTypes, drinkTypes: drinks, rests }), 'text/markdown;charset=utf-8')} color={C.primary} style={{ flex:1, minWidth:160, height:50 }}>
+              <FileText size={18}/> MD
+            </Btn>
+            <Btn onClick={() => downloadBlob(`talabati-${sid}.csv`, buildSessionCsv(allOrders, delivery), 'text/csv;charset=utf-8')} color={C.gradAdmin} style={{ flex:1, minWidth:160, height:50 }}>
+              <Download size={18}/> CSV
+            </Btn>
+            <GhostBtn onClick={() => setConfirmReset(true)} color={C.red} style={{ height:50, padding:'0 20px' }}>
+              <Trash2 size={18}/>
+            </GhostBtn>
           </div>
 
-          <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-            <div className="glass-card" style={{ padding:16 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <div style={{ fontSize:14, fontWeight:900, color:C.dark, display:'flex', alignItems:'center', gap:6 }}>
-                  <Users size={16} color={C.purple}/> المتأخرين عن الطلب
-                </div>
-                <GhostBtn onClick={() => { setExpectedInput(expected.join('\n')); setShowExpected(true) }} style={{ padding:'4px 8px', height:28, fontSize:11 }}>
-                  تعديل
-                </GhostBtn>
-              </div>
-              {expected.length === 0 ? (
-                <p style={{ fontSize:12, color:C.muted, textAlign:'center' }}>لا توجد قائمة متابعة بعد.</p>
-              ) : missingMembers.length === 0 ? (
-                <div style={{ color:C.green, textAlign:'center', fontWeight:800, fontSize:13 }}>🎉 كله طلب بالفعل</div>
-              ) : (
-                <>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
-                    {missingMembers.map(name => (
-                      <div key={name} style={{ background:'#FEF3C7', color:'#92400E', borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:800 }}>{name}</div>
-                    ))}
-                  </div>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Btn onClick={shareMissingReminder} color="#25D366" style={{ flex:1, height:40, boxShadow:'none', fontSize:13 }}>
-                      <MessageCircle size={14}/> تذكير
-                    </Btn>
-                    <GhostBtn onClick={() => copyText(buildMissingReminderText(sid, missingMembers), 'missing')} style={{ flex:1, height:40, justifyContent:'center' }}>
-                      {copied === 'missing' ? <Check size={14} color={C.green}/> : <Copy size={14}/>}
-                      نسخ النص
-                    </GhostBtn>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="glass-card" style={{ padding:16 }}>
-              <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                <Clock size={16} color={C.accent}/> المؤقت
-              </div>
-              {deadline ? (
-                <div>
-                  <Countdown deadline={deadline} />
-                  <GhostBtn onClick={clearDeadline} color={C.red} style={{ width:'100%', marginTop:8, height:36, justifyContent:'center' }}>
-                    إلغاء
+          <div className="admin-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 2fr) minmax(320px, 1fr)', gap:24, alignItems:'start' }}>
+            {/* Left column: orders list */}
+            <div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+                <div style={{ fontSize:16, fontWeight:900, color:C.dark }}>📋 قائمة الطلبات</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="ابحث باسم / صنف / رقم"
+                    value={orderSearch}
+                    onChange={e => setOrderSearch(e.target.value)}
+                    style={{ ...inpSt({ width: 220, height: 40, fontSize: 13 }) }}
+                  />
+                  <GhostBtn onClick={() => setShowUnpaidOnly(value => !value)} color={showUnpaidOnly ? C.red : C.primary} style={{ height:40, justifyContent:'center' }}>
+                    {showUnpaidOnly ? 'عرض الكل' : 'غير المدفوع فقط'}
                   </GhostBtn>
                 </div>
+              </div>
+              {orders.length === 0 ? (
+                <div className="glass-card" style={{ textAlign:'center', padding:'60px 0' }}>
+                  <div style={{ fontSize:48, marginBottom:16 }}>🍩</div>
+                  <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>لسه مفيش حد طلب حاجة</p>
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="glass-card" style={{ textAlign:'center', padding:'40px 0' }}>
+                  <p style={{ fontSize:15, fontWeight:700, color:C.muted }}>مفيش طلبات مطابقة للفلتر الحالي.</p>
+                </div>
               ) : (
-                <div style={{ display:'flex', gap:8 }}>
-                  <input type="datetime-local" value={deadlineInput} onChange={e => setDeadlineInput(e.target.value)} style={inpSt({ flex:1, fontSize:12 })}/>
-                  <Btn onClick={handleSetDeadline} disabled={!deadlineInput} style={{ padding:'0 12px', height:36, boxShadow:'none' }}>
-                    تفعيل
-                  </Btn>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(360px, 1fr))', gap:16 }}>
+                  {filteredOrders.map(order => (
+                    <div key={order.uid} className="glass-card" style={{ overflow:'hidden' }}>
+                      <div style={{ padding:'14px 16px', background:`${order.paid ? C.green : C.primary}08`, display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid var(--border)' }}>
+                        <div style={{ width:38, height:38, borderRadius:10, background:order.paid ? C.gradAdmin : C.grad, color:'#FFF', fontWeight:900, fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {order.name[0]}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:15, fontWeight:900, color:C.dark }}>{order.name}</div>
+                          <div style={{ fontSize:10, color:C.muted, fontWeight:700 }}>🕐 {formatTime(order.submittedAt)}</div>
+                        </div>
+                        <div style={{ display:'flex', gap:4 }}>
+                          <button onClick={() => setEditOrder({ uid:order.uid, name:order.name, lines:[...(order.lines || [])] })} style={{ width:30, height:30, borderRadius:8, background:C.tag, border:'none', color:C.primary, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <Edit3 size={14}/>
+                          </button>
+                          <button onClick={() => deleteOrder(order.uid)} style={{ width:30, height:30, borderRadius:8, background:C.redLight, border:'none', color:C.red, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <Trash2 size={14}/>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ padding:'14px 16px' }}>
+                        {(order.phone || order.telegram) && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:12 }}>
+                            {order.phone && <div style={{ background:C.tag, color:C.dark, borderRadius:999, padding:'6px 10px', fontSize:11, fontWeight:800 }}>📱 {order.phone}</div>}
+                            {order.telegram && <div style={{ background:C.tag, color:C.primary, borderRadius:999, padding:'6px 10px', fontSize:11, fontWeight:800 }}>@{order.telegram}</div>}
+                          </div>
+                        )}
+
+                        {(order.lines || []).map((line, index) => (
+                          <div key={index} style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:12 }}>
+                            <div style={{ fontSize:13, fontWeight:700 }}>
+                              {line.iname} <span style={{ color:C.muted, marginRight:4 }}>×{line.qty}</span>
+                              {order.notes?.[line.key] && <div style={{ fontSize:10, color:'#92400E', background:'#FEF9C3', borderRadius:6, padding:'1px 6px', marginTop:3 }}>📝 {order.notes[line.key]}</div>}
+                            </div>
+                            <span style={{ fontSize:13, fontWeight:800 }}>{line.price * line.qty} ج</span>
+                          </div>
+                        ))}
+
+                        <div style={{ borderTop:'1px dashed var(--border)', marginTop:10, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <span style={{ fontSize:12, fontWeight:700, color:C.muted }}>الإجمالي مع التوصيل</span>
+                          <span style={{ fontSize:16, fontWeight:950, color:C.primary }}>{fmt(getOrderTotal(order, perPerson))} ج</span>
+                        </div>
+
+                        <div style={{ display:'flex', gap:8, marginTop:12 }}>
+                          <Btn
+                            onClick={() => togglePaid(order)}
+                            color={order.paid ? C.red : C.gradAdmin}
+                            style={{ flex:1, height:42, fontSize:13, boxShadow:'none' }}
+                          >
+                            <Wallet size={15}/> {order.paid ? 'إلغاء الدفع' : 'تم الدفع'}
+                          </Btn>
+                          <div style={{ minWidth:112, background:order.paid ? C.greenLight : C.redLight, color:order.paid ? C.green : C.red, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:900 }}>
+                            {order.paid ? `مدفوع ${fmt(order.paidAmount ?? getOrderTotal(order, perPerson))} ج` : 'غير مدفوع'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            <div className="glass-card" style={{ padding:16 }}>
-              <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                <Truck size={16} color={C.primary}/> التوصيل
-              </div>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <input type="number" placeholder="0" value={deliveryInput} onChange={e => setDeliveryInput(e.target.value)} style={inpSt({ flex:1, fontSize:16, fontWeight:800, textAlign:'center' })}/>
-                <Btn onClick={handleDelivery} loading={savingDel} style={{ padding:'0 16px', height:40, boxShadow:'none' }}>
-                  حفظ
-                </Btn>
-              </div>
-              <div style={{ marginTop:10, fontSize:12, color:C.muted, fontWeight:700 }}>نصيب الفرد حالياً: {fmt(perPerson)} ج</div>
-            </div>
-
-            <div className="glass-card" style={{ padding:16 }}>
-              <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                <Wallet size={16} color={C.green}/> التحصيل
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                <div style={{ background:C.greenLight, borderRadius:12, padding:'10px 12px' }}>
-                  <div style={{ fontSize:11, color:C.green, fontWeight:800 }}>تم دفعه</div>
-                  <div style={{ fontSize:18, fontWeight:950, color:C.green }}>{fmt(paymentSummary.totalPaid)} ج</div>
-                </div>
-                <div style={{ background:C.redLight, borderRadius:12, padding:'10px 12px' }}>
-                  <div style={{ fontSize:11, color:C.red, fontWeight:800 }}>المتبقي</div>
-                  <div style={{ fontSize:18, fontWeight:950, color:C.red }}>{fmt(paymentSummary.remaining)} ج</div>
-                </div>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12 }}>
-                <Btn onClick={() => bulkSetPayments(true)} loading={bulkPayLoading === 'paid'} style={{ height:40, fontSize:12, boxShadow:'none' }}>
-                  دفع الكل
-                </Btn>
-                <GhostBtn onClick={() => bulkSetPayments(false)} color={C.red} style={{ height:40, justifyContent:'center', fontSize:12 }}>
-                  رجّع الكل غير مدفوع
-                </GhostBtn>
-              </div>
-            </div>
-
-            {restaurantBreakdown.length > 0 && (
+            {/* Right column: sidebar */}
+            <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
               <div className="glass-card" style={{ padding:16 }}>
-                <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12 }}>🍽️ تجميع المطاعم</div>
-                <div style={{ display:'grid', gap:8 }}>
-                  {restaurantBreakdown.map(rest => (
-                    <div key={rest.id} style={{ background:C.tag, borderRadius:12, padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:900, color:C.dark }}>{rest.name}</div>
-                        <div style={{ fontSize:11, color:C.muted, fontWeight:700 }}>{rest.items} قطعة · {rest.peopleCount} أشخاص</div>
-                      </div>
-                      <div style={{ fontSize:14, fontWeight:900, color:C.primary }}>{fmt(rest.total)} ج</div>
-                    </div>
-                  ))}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                  <div style={{ fontSize:14, fontWeight:900, color:C.dark, display:'flex', alignItems:'center', gap:6 }}>
+                    <Users size={16} color={C.purple}/> المتأخرين عن الطلب
+                  </div>
+                  <GhostBtn onClick={() => { setExpectedInput(expected.join('\n')); setShowExpected(true) }} style={{ padding:'4px 8px', height:28, fontSize:11 }}>
+                    تعديل
+                  </GhostBtn>
                 </div>
+                {expected.length === 0 ? (
+                  <p style={{ fontSize:12, color:C.muted, textAlign:'center' }}>لا توجد قائمة متابعة بعد.</p>
+                ) : missingMembers.length === 0 ? (
+                  <div style={{ color:C.green, textAlign:'center', fontWeight:800, fontSize:13 }}>🎉 كله طلب بالفعل</div>
+                ) : (
+                  <>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                      {missingMembers.map(name => (
+                        <div key={name} style={{ background:'#FEF3C7', color:'#92400E', borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:800 }}>{name}</div>
+                      ))}
+                    </div>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <Btn onClick={shareMissingReminder} color="#25D366" style={{ flex:1, height:40, boxShadow:'none', fontSize:13 }}>
+                        <MessageCircle size={14}/> تذكير
+                      </Btn>
+                      <GhostBtn onClick={() => copyText(buildMissingReminderText(sid, missingMembers), 'missing')} style={{ flex:1, height:40, justifyContent:'center' }}>
+                        {copied === 'missing' ? <Check size={14} color={C.green}/> : <Copy size={14}/>}
+                        نسخ النص
+                      </GhostBtn>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
 
-            {drinkBreakdown.length > 0 && (
               <div className="glass-card" style={{ padding:16 }}>
                 <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-                  <Coffee size={16} color={C.green}/> المشروبات
+                  <Clock size={16} color={C.accent}/> المؤقت
                 </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {drinkBreakdown.map(drink => (
-                    <div key={drink.id} style={{ display:'flex', alignItems:'center', gap:6, background:C.tag, borderRadius:12, padding:'8px 10px' }}>
-                      <span>{drink.emoji}</span>
-                      <span style={{ fontSize:12, fontWeight:800, color:C.dark }}>{drink.name}</span>
-                      <span style={{ fontSize:12, fontWeight:900, color:C.green }}>×{drink.qty}</span>
-                    </div>
-                  ))}
+                {deadline ? (
+                  <div>
+                    <Countdown deadline={deadline} />
+                    <GhostBtn onClick={clearDeadline} color={C.red} style={{ width:'100%', marginTop:8, height:36, justifyContent:'center' }}>
+                      إلغاء
+                    </GhostBtn>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input type="datetime-local" value={deadlineInput} onChange={e => setDeadlineInput(e.target.value)} style={inpSt({ flex:1, fontSize:12 })}/>
+                    <Btn onClick={handleSetDeadline} disabled={!deadlineInput} style={{ padding:'0 12px', height:36, boxShadow:'none' }}>
+                      تفعيل
+                    </Btn>
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card" style={{ padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                  <Truck size={16} color={C.primary}/> التوصيل
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <input type="number" placeholder="0" value={deliveryInput} onChange={e => setDeliveryInput(e.target.value)} style={inpSt({ flex:1, fontSize:16, fontWeight:800, textAlign:'center' })}/>
+                  <Btn onClick={handleDelivery} loading={savingDel} style={{ padding:'0 16px', height:40, boxShadow:'none' }}>
+                    حفظ
+                  </Btn>
+                </div>
+                <div style={{ marginTop:10, fontSize:12, color:C.muted, fontWeight:700 }}>نصيب الفرد حالياً: {fmt(perPerson)} ج</div>
+              </div>
+
+              <div className="glass-card" style={{ padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                  <Wallet size={16} color={C.green}/> التحصيل
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <div style={{ background:C.greenLight, borderRadius:12, padding:'10px 12px' }}>
+                    <div style={{ fontSize:11, color:C.green, fontWeight:800 }}>تم دفعه</div>
+                    <div style={{ fontSize:18, fontWeight:950, color:C.green }}>{fmt(paymentSummary.totalPaid)} ج</div>
+                  </div>
+                  <div style={{ background:C.redLight, borderRadius:12, padding:'10px 12px' }}>
+                    <div style={{ fontSize:11, color:C.red, fontWeight:800 }}>المتبقي</div>
+                    <div style={{ fontSize:18, fontWeight:950, color:C.red }}>{fmt(paymentSummary.remaining)} ج</div>
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12 }}>
+                  <Btn onClick={() => bulkSetPayments(true)} loading={bulkPayLoading === 'paid'} style={{ height:40, fontSize:12, boxShadow:'none' }}>
+                    دفع الكل
+                  </Btn>
+                  <GhostBtn onClick={() => bulkSetPayments(false)} color={C.red} style={{ height:40, justifyContent:'center', fontSize:12 }}>
+                    رجّع الكل غير مدفوع
+                  </GhostBtn>
                 </div>
               </div>
-            )}
 
-<div style={{ fontSize:15, fontWeight:900, color:C.dark, marginTop:4 }}>📊 الملخص المجمع</div>
-            <CombinedTotals allOrders={allOrders} breadTypes={breadTypes}/>
+              {restaurantBreakdown.length > 0 && (
+                <div className="glass-card" style={{ padding:16 }}>
+                  <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12 }}>🍽️ تجميع المطاعم</div>
+                  <div style={{ display:'grid', gap:8 }}>
+                    {restaurantBreakdown.map(rest => (
+                      <div key={rest.id} style={{ background:C.tag, borderRadius:12, padding:'10px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:900, color:C.dark }}>{rest.name}</div>
+                          <div style={{ fontSize:11, color:C.muted, fontWeight:700 }}>{rest.items} قطعة · {rest.peopleCount} أشخاص</div>
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:900, color:C.primary }}>{fmt(rest.total)} ج</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {drinkBreakdown.length > 0 && (
+                <div className="glass-card" style={{ padding:16 }}>
+                  <div style={{ fontSize:14, fontWeight:900, color:C.dark, marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+                    <Coffee size={16} color={C.green}/> المشروبات
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                    {drinkBreakdown.map(drink => (
+                      <div key={drink.id} style={{ display:'flex', alignItems:'center', gap:6, background:C.tag, borderRadius:12, padding:'8px 10px' }}>
+                        <span>{drink.emoji}</span>
+                        <span style={{ fontSize:12, fontWeight:800, color:C.dark }}>{drink.name}</span>
+                        <span style={{ fontSize:12, fontWeight:900, color:C.green }}>×{drink.qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize:15, fontWeight:900, color:C.dark, marginTop:4 }}>📊 الملخص المجمع</div>
+              <CombinedTotals allOrders={allOrders} breadTypes={breadTypes}/>
+            </div>
+            {/* FIX 3: properly closed admin-grid, sessions fragment, and added other tab panels */}
           </div>
-        )}
+        </>
+      )}
+
+      {activeAdminTab === 'analytics' && <AnalyticsTab sid={sid} />}
+      {activeAdminTab === 'promo' && <PromoCodesTab promoCodes={promoCodes} />}
+      {activeAdminTab === 'status' && <OrderStatusTab sid={sid} />}
 
       {showExpected && (
         <Modal title="قائمة الأشخاص" onClose={() => setShowExpected(false)}>

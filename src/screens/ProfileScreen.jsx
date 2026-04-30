@@ -202,7 +202,7 @@ export default function ProfileScreen({ onBack }) {
               )}
             </>
           )}
-        </>
+        </div>{/* FIX: was </> — must close the <div style={{ padding: '0 20px' }}> */}
       </div>
 
       {/* Logout Button */}
