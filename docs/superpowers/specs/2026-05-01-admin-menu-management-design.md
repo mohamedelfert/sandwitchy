@@ -87,9 +87,9 @@ All three settings remain JSON arrays in `app_settings`. **No schema migrations.
 }
 ```
 
-**Bread (`bread_types[]`):** `{ id, ar, color, light }` — unchanged.
+**Bread (`bread_types[]`):** `{ id, ar, color, light, available }` — adds `available` (default `true`) for soft-delete consistency with vendors/items.
 
-**Drink (`drinks[]`):** `{ id, name, emoji }` — unchanged. Refactored in Phase 2.
+**Drink (`drinks[]`):** `{ id, name, emoji, available }` — adds `available` (default `true`). Otherwise unchanged in Phase 1; refactored in Phase 2.
 
 ### Endpoints
 
