@@ -1643,6 +1643,56 @@ app.delete('/api/admin/menu/vendor/:vid/item/:iid', requireAdmin, (req, res) => 
   res.json({ ok: true, vendor })
 })
 
+// ── Admin Menu CRUD: bread types ───────────────────────────────────
+app.post('/api/admin/menu/bread', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateBread(body, { partial: false })
+  if (err) return res.status(400).json(err)
+  const bread = {
+    id: newMenuId(),
+    ar: body.ar.trim(),
+    color: body.color,
+    light: typeof body.light === 'string' && HEX_COLOR_RE.test(body.light) ? body.light : `${body.color}11`,
+    available: body.available === false ? false : true,
+  }
+  const types = getBreadTypes()
+  types.push(bread)
+  setBreadTypesValue(types)
+  res.json({ ok: true, bread, bread_types: types })
+})
+
+app.put('/api/admin/menu/bread/:id', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateBread(body, { partial: true })
+  if (err) return res.status(400).json(err)
+  const types = getBreadTypes()
+  const idx = types.findIndex(b => String(b.id) === String(req.params.id))
+  if (idx === -1) return res.status(404).json({ ok: false, error: 'not_found' })
+  const allowed = ['ar', 'color', 'light', 'available']
+  const patch = {}
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      patch[k] = k === 'ar' ? body.ar.trim()
+              : k === 'available' ? !!body[k]
+              : body[k]
+    }
+  }
+  types[idx] = { ...types[idx], ...patch }
+  setBreadTypesValue(types)
+  res.json({ ok: true, bread: types[idx] })
+})
+
+app.delete('/api/admin/menu/bread/:id', requireAdmin, (req, res) => {
+  const id = req.params.id
+  const refs = findReferencingSessions({ breadId: id })
+  if (refs.length > 0) {
+    return res.status(409).json({ ok: false, error: 'in_use', sessions: refs })
+  }
+  const types = getBreadTypes().filter(b => String(b.id) !== String(id))
+  setBreadTypesValue(types)
+  res.json({ ok: true, bread_types: types })
+})
+
 function saveVote(sid, uid, name, rid) {
   if (!db) return
   db.prepare(`INSERT OR REPLACE INTO votes (sid, uid, name, rid) VALUES (?, ?, ?, ?)`).run(sid, uid, name, rid)
