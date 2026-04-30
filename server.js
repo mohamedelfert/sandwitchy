@@ -1533,6 +1533,61 @@ app.post('/api/settings', requireAdmin, (req, res) => {
   res.json({ ok: true })
 })
 
+// ── Admin Menu CRUD: vendors ───────────────────────────────────────
+app.post('/api/admin/menu/vendor', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateVendor(body, { partial: false })
+  if (err) return res.status(400).json(err)
+  const vendor = {
+    id: newMenuId(),
+    name: body.name.trim(),
+    emoji: typeof body.emoji === 'string' ? body.emoji : '🍽️',
+    bg: typeof body.bg === 'string' && HEX_COLOR_RE.test(body.bg) ? body.bg : '#FFF8E8',
+    hasBread: !!body.hasBread,
+    delivery: Number(body.delivery) || 0,
+    image: typeof body.image === 'string' ? body.image : '',
+    available: body.available === false ? false : true,
+    items: [],
+  }
+  const rests = getRests()
+  rests.push(vendor)
+  setRestsValue(rests)
+  res.json({ ok: true, vendor, rests })
+})
+
+app.put('/api/admin/menu/vendor/:id', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateVendor(body, { partial: true })
+  if (err) return res.status(400).json(err)
+  const rests = getRests()
+  const idx = rests.findIndex(r => String(r.id) === String(req.params.id))
+  if (idx === -1) return res.status(404).json({ ok: false, error: 'not_found' })
+  const allowed = ['name', 'emoji', 'bg', 'hasBread', 'delivery', 'image', 'available']
+  const patch = {}
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      patch[k] = k === 'name' ? body.name.trim()
+              : k === 'delivery' ? Number(body.delivery) || 0
+              : k === 'hasBread' || k === 'available' ? !!body[k]
+              : body[k]
+    }
+  }
+  rests[idx] = { ...rests[idx], ...patch }
+  setRestsValue(rests)
+  res.json({ ok: true, vendor: rests[idx] })
+})
+
+app.delete('/api/admin/menu/vendor/:id', requireAdmin, (req, res) => {
+  const id = req.params.id
+  const refs = findReferencingSessions({ vendorId: id })
+  if (refs.length > 0) {
+    return res.status(409).json({ ok: false, error: 'in_use', sessions: refs })
+  }
+  const rests = getRests().filter(r => String(r.id) !== String(id))
+  setRestsValue(rests)
+  res.json({ ok: true, rests })
+})
+
 function saveVote(sid, uid, name, rid) {
   if (!db) return
   db.prepare(`INSERT OR REPLACE INTO votes (sid, uid, name, rid) VALUES (?, ?, ?, ?)`).run(sid, uid, name, rid)
