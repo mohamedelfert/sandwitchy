@@ -1588,6 +1588,61 @@ app.delete('/api/admin/menu/vendor/:id', requireAdmin, (req, res) => {
   res.json({ ok: true, rests })
 })
 
+// ── Admin Menu CRUD: items ─────────────────────────────────────────
+app.post('/api/admin/menu/vendor/:vid/item', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateItem(body, { partial: false })
+  if (err) return res.status(400).json(err)
+  const rests = getRests()
+  const vendor = rests.find(r => String(r.id) === String(req.params.vid))
+  if (!vendor) return res.status(404).json({ ok: false, error: 'not_found' })
+  const item = {
+    id: newMenuId(),
+    name: body.name.trim(),
+    price: Number(body.price) || 0,
+    available: body.available === false ? false : true,
+  }
+  vendor.items = [...(vendor.items || []), item]
+  setRestsValue(rests)
+  res.json({ ok: true, item, vendor })
+})
+
+app.put('/api/admin/menu/vendor/:vid/item/:iid', requireAdmin, (req, res) => {
+  const body = req.body || {}
+  const err = validateItem(body, { partial: true })
+  if (err) return res.status(400).json(err)
+  const rests = getRests()
+  const vendor = rests.find(r => String(r.id) === String(req.params.vid))
+  if (!vendor) return res.status(404).json({ ok: false, error: 'not_found' })
+  const idx = (vendor.items || []).findIndex(it => String(it.id) === String(req.params.iid))
+  if (idx === -1) return res.status(404).json({ ok: false, error: 'not_found' })
+  const allowed = ['name', 'price', 'available']
+  const patch = {}
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      patch[k] = k === 'name' ? body.name.trim()
+              : k === 'price' ? Number(body.price) || 0
+              : !!body[k]
+    }
+  }
+  vendor.items[idx] = { ...vendor.items[idx], ...patch }
+  setRestsValue(rests)
+  res.json({ ok: true, item: vendor.items[idx] })
+})
+
+app.delete('/api/admin/menu/vendor/:vid/item/:iid', requireAdmin, (req, res) => {
+  const refs = findReferencingSessions({ itemId: req.params.iid })
+  if (refs.length > 0) {
+    return res.status(409).json({ ok: false, error: 'in_use', sessions: refs })
+  }
+  const rests = getRests()
+  const vendor = rests.find(r => String(r.id) === String(req.params.vid))
+  if (!vendor) return res.status(404).json({ ok: false, error: 'not_found' })
+  vendor.items = (vendor.items || []).filter(it => String(it.id) !== String(req.params.iid))
+  setRestsValue(rests)
+  res.json({ ok: true, vendor })
+})
+
 function saveVote(sid, uid, name, rid) {
   if (!db) return
   db.prepare(`INSERT OR REPLACE INTO votes (sid, uid, name, rid) VALUES (?, ?, ?, ?)`).run(sid, uid, name, rid)
