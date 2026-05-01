@@ -20,6 +20,23 @@ const LAST_ORDER_KEY = 'sandwitchy_last_order'
 const USER_NAME_KEY  = 'sandwitchy_user_name'
 const PHONE_KEY      = 'sandwitchy_user_phone'
 const TELEGRAM_KEY   = 'sandwitchy_user_telegram'
+const SESSION_ID_KEY = 'sandwitchy_session_id'
+const SCREEN_KEY     = 'sandwitchy_screen'
+
+function saveStoredSession(sid, screen) {
+  try { 
+    localStorage.setItem(SESSION_ID_KEY, sid || '')
+    localStorage.setItem(SCREEN_KEY, screen || '')
+  } catch(_) {}
+}
+function loadStoredSession() {
+  try { 
+    return { 
+      sid: localStorage.getItem(SESSION_ID_KEY) || '',
+      screen: localStorage.getItem(SCREEN_KEY) || 'welcome'
+    }
+  } catch(_) { return { sid: '', screen: 'welcome' } }
+}
 
 function saveLastOrder(lines, drinks, notes) {
   try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ lines, drinks, notes, savedAt: Date.now() })) } catch(_) {}
@@ -81,12 +98,26 @@ export default function UserApp() {
   const [showFavorites, setShowFavorites] = useState(false)
   const evtRef = useRef(null)
 
-  // Restore session from URL
+  // Restore session from URL or localStorage
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     const s = p.get('s')
     const v = p.get('vote')
-    if (s) { setSessionId(s); setScreen(v === '1' ? 'vote' : 'name') }
+    
+    if (s) {
+      setSessionId(s)
+      setScreen(v === '1' ? 'vote' : 'name')
+    } else {
+      // Check localStorage for persisted session
+      const stored = loadStoredSession()
+      if (stored.sid) {
+        setSessionId(stored.sid)
+        // Only restore if it's a valid screen we can resume from
+        if (stored.screen && stored.screen !== 'welcome') {
+          setScreen(stored.screen)
+        }
+      }
+    }
     
     // Fetch settings (menu from API)
     api.getSettings().then(s => {
@@ -101,6 +132,13 @@ export default function UserApp() {
       if (s.drinks) setDrinkTypes(s.drinks.filter(isAvail))
     })
   }, [])
+
+  // Persist session on change
+  useEffect(() => {
+    if (sessionId) {
+      saveStoredSession(sessionId, screen)
+    }
+  }, [sessionId, screen])
 
   // SSE
   useEffect(() => {
