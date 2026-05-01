@@ -90,9 +90,15 @@ export default function UserApp() {
     
     // Fetch settings (menu from API)
     api.getSettings().then(s => {
-      if (s.bread_types) setBreadTypes(s.bread_types)
-      if (s.rests) setRests(s.rests)
-      if (s.drinks) setDrinkTypes(s.drinks)
+      const isAvail = x => x.available !== false
+      if (s.bread_types) setBreadTypes(s.bread_types.filter(isAvail))
+      if (s.rests) {
+        const visible = s.rests
+          .filter(isAvail)
+          .map(r => ({ ...r, items: (r.items || []).filter(isAvail) }))
+        setRests(visible)
+      }
+      if (s.drinks) setDrinkTypes(s.drinks.filter(isAvail))
     })
   }, [])
 
@@ -229,9 +235,9 @@ export default function UserApp() {
     }
     if (screen === 'login') {
       return authMode === 'login' ? (
-        <LoginScreen onSwitchToRegister={() => setAuthMode('register')} />
+        <LoginScreen onSwitchToRegister={() => setAuthMode('register')} onSuccess={() => setScreen('name')} onGuest={() => setScreen('name')} />
       ) : (
-        <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} />
+        <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} onSuccess={() => setScreen('name')} onGuest={() => setScreen('name')} />
       )
     }
   }
@@ -255,8 +261,8 @@ export default function UserApp() {
       
       {screen==='login' && (
         authMode === 'login' ?
-          <LoginScreen onSwitchToRegister={() => setAuthMode('register')} /> :
-          <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} />
+          <LoginScreen onSwitchToRegister={() => setAuthMode('register')} onSuccess={() => setScreen('home')} onGuest={() => setScreen('name')} /> :
+          <RegisterScreen onSwitchToLogin={() => setAuthMode('login')} onSuccess={() => setScreen('home')} onGuest={() => setScreen('name')} />
       )}
       
       {screen==='name' && (

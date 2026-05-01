@@ -1,3 +1,12 @@
+const TOKEN_KEY = 'sandwitchy_token'
+
+function authHeaders(extra) {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const headers = { ...(extra || {}) }
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
 async function parseJson(responsePromise) {
   const response = await responsePromise
   const data = await response.json().catch(() => ({}))
@@ -14,21 +23,21 @@ export const api = {
   // Auth
   authRegister:   (u,p,o) => fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username:u, password:p, ...o }) }).then(r=>r.json()),
   authLogin:      (u,p)   => fetch('/api/auth/login',    { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username:u, password:p }) }).then(r=>r.json()),
-  authLogout:     ()      => fetch('/api/auth/logout',   { method:'POST' }).then(r=>r.json()),
-  getCurrentUser: ()      => fetch('/api/auth/me').then(r=>r.json()),
-  updateProfile:  (data)  => fetch('/api/users/me', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) }).then(r=>r.json()),
-  getUserProfile: ()     => fetch('/api/users/me').then(r=>r.json()),
-  
+  authLogout:     ()      => fetch('/api/auth/logout',   { method:'POST', headers: authHeaders() }).then(r=>r.json()),
+  getCurrentUser: ()      => fetch('/api/auth/me', { headers: authHeaders() }).then(r=>r.json()),
+  updateProfile:  (data)  => fetch('/api/users/me', { method:'PUT', headers: authHeaders({'Content-Type':'application/json'}), body:JSON.stringify(data) }).then(r=>r.json()),
+  getUserProfile: ()     => fetch('/api/users/me', { headers: authHeaders() }).then(r=>r.json()),
+
   // Addresses
-  getAddresses:   ()      => fetch('/api/addresses').then(r=>r.json()),
-  addAddress:     (data)  => fetch('/api/addresses', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) }).then(r=>r.json()),
-  updateAddress:  (id,data)=> fetch(`/api/addresses/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) }).then(r=>r.json()),
-  deleteAddress:  (id)    => fetch(`/api/addresses/${id}`, { method:'DELETE' }).then(r=>r.json()),
-  
+  getAddresses:   ()      => fetch('/api/addresses', { headers: authHeaders() }).then(r=>r.json()),
+  addAddress:     (data)  => fetch('/api/addresses', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body:JSON.stringify(data) }).then(r=>r.json()),
+  updateAddress:  (id,data)=> fetch(`/api/addresses/${id}`, { method:'PUT', headers: authHeaders({'Content-Type':'application/json'}), body:JSON.stringify(data) }).then(r=>r.json()),
+  deleteAddress:  (id)    => fetch(`/api/addresses/${id}`, { method:'DELETE', headers: authHeaders() }).then(r=>r.json()),
+
   // Favorites
-  getFavorites:   (type)  => fetch(`/api/favorites?${type ? `type=${type}` : ''}`).then(r=>r.json()),
-  addFavorite:    (type,data) => fetch('/api/favorites', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type, data }) }).then(r=>r.json()),
-  removeFavorite: (id)    => fetch(`/api/favorites/${id}`, { method:'DELETE' }).then(r=>r.json()),
+  getFavorites:   (type)  => fetch(`/api/favorites?${type ? `type=${type}` : ''}`, { headers: authHeaders() }).then(r=>r.json()),
+  addFavorite:    (type,data) => fetch('/api/favorites', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body:JSON.stringify({ type, data }) }).then(r=>r.json()),
+  removeFavorite: (id)    => fetch(`/api/favorites/${id}`, { method:'DELETE', headers: authHeaders() }).then(r=>r.json()),
   
   // Promo codes
   validatePromo:  (code,amount) => fetch('/api/promo/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code, amount }) }).then(r=>r.json()),
@@ -71,14 +80,28 @@ export const api = {
   setOrderStatus:  (sid,uid,status,note) => parseJson(fetch(`/api/orders/${sid}/${uid}/status`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status, note }) })),
   
   // Notifications
-  getNotifications:(unread_only) => fetch(`/api/notifications?${unread_only ? 'unread_only=true' : ''}`).then(r=>r.json()),
-  markNotificationRead:(id) => parseJson(fetch(`/api/notifications/${id}/read`, { method:'PUT' })),
-  markAllNotificationsRead: () => parseJson(fetch('/api/notifications/mark-all-read', { method:'POST' })),
+  getNotifications:(unread_only) => fetch(`/api/notifications?${unread_only ? 'unread_only=true' : ''}`, { headers: authHeaders() }).then(r=>r.json()),
+  markNotificationRead:(id) => parseJson(fetch(`/api/notifications/${id}/read`, { method:'PUT', headers: authHeaders() })),
+  markAllNotificationsRead: () => parseJson(fetch('/api/notifications/mark-all-read', { method:'POST', headers: authHeaders() })),
   
   // Restaurant hours
   getRestaurantHours: (id)  => fetch(`/api/restaurants/${id}/hours`).then(r=>r.json()),
   setRestaurantHours: (id, hours) => parseJson(fetch(`/api/restaurants/${id}/hours`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ hours }) })),
-  
+
+  // Menu management (Phase 1 admin)
+  createVendor:    (data)            => parseJson(fetch('/api/admin/menu/vendor', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  updateVendor:    (vid, data)       => parseJson(fetch(`/api/admin/menu/vendor/${vid}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  deleteVendor:    (vid)             => parseJson(fetch(`/api/admin/menu/vendor/${vid}`, { method:'DELETE' })),
+  createItem:      (vid, data)       => parseJson(fetch(`/api/admin/menu/vendor/${vid}/item`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  updateItem:      (vid, iid, data)  => parseJson(fetch(`/api/admin/menu/vendor/${vid}/item/${iid}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  deleteItem:      (vid, iid)        => parseJson(fetch(`/api/admin/menu/vendor/${vid}/item/${iid}`, { method:'DELETE' })),
+  createBread:     (data)            => parseJson(fetch('/api/admin/menu/bread', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  updateBread:     (id, data)        => parseJson(fetch(`/api/admin/menu/bread/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  deleteBread:     (id)              => parseJson(fetch(`/api/admin/menu/bread/${id}`, { method:'DELETE' })),
+  createDrink:     (data)            => parseJson(fetch('/api/admin/menu/drink', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  updateDrink:     (id, data)        => parseJson(fetch(`/api/admin/menu/drink/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })),
+  deleteDrink:     (id)              => parseJson(fetch(`/api/admin/menu/drink/${id}`, { method:'DELETE' })),
+
   // Votes (existing)
   getVotes:       (sid)      => fetch(`/api/votes/${sid}`).then(r=>r.json()),
   vote:           (sid, uid, name, rid) => fetch(`/api/votes/${sid}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ uid, name, rid }) }).then(r=>r.json()),

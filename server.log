@@ -1,0 +1,16 @@
+
+> sandwitchy@2.0.0 dev
+> node server.js
+
+[db]     SQLite ready → /home/mohamed/Downloads/sandwitchy/data/sandwitchy.db
+
+  🍽️  طلباتي v2
+
+  Local:   http://localhost:3000
+  Network: http://192.168.1.145:3000
+
+  Admin:   http://192.168.1.145:3000/?admin=1
+  n8n:     ⚠️  N8N_WEBHOOK not set
+  SQLite:  enabled
+  Admin credentials: using defaults, set ADMIN_USERNAME and ADMIN_PASSWORD for production
+

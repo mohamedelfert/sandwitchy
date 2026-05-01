@@ -15,6 +15,7 @@ import { generateMD } from '../utils/markdown.js'
 import AnalyticsTab from './AnalyticsTab.jsx'
 import PromoCodesTab from './PromoCodesTab.jsx'
 import OrderStatusTab from './OrderStatusTab.jsx'
+import MenuSettingsTab from './MenuSettingsTab.jsx'
 import {
   buildSessionCsv,
   downloadBlob,
@@ -108,9 +109,6 @@ export default function AdminPage() {
   const [breadTypes, setBreadTypes] = useState([])
   const [rests, setRests] = useState([])
   const [drinks, setDrinks] = useState([])
-  const [showSettings, setShowSettings] = useState(false)
-  const [menuTab, setMenuTab] = useState('rests')
-  const [newBread, setNewBread] = useState({ ar:'', color:'#B83A0A' })
   const [copied, setCopied] = useState('')
   const [editOrder, setEditOrder] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -120,7 +118,6 @@ export default function AdminPage() {
   const [expectedInput, setExpectedInput] = useState('')
   const [deadlineInput, setDeadlineInput] = useState('')
   const [desktopNotifications, setDesktopNotifications] = useState(() => localStorage.getItem('sandwitchy_admin_notifications') === 'true')
-  const [savingSettings, setSavingSettings] = useState(false)
   const [savingMeta, setSavingMeta] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
   const [showUnpaidOnly, setShowUnpaidOnly] = useState(false)
@@ -449,33 +446,6 @@ export default function AdminPage() {
     } catch (_) {}
   }
 
-  const saveSettings = async key => {
-    const value = key === 'bread_types' ? breadTypes : key === 'rests' ? rests : drinks
-    setSavingSettings(true)
-    try {
-      await guarded(() => api.updateSettings(key, value))
-      refreshAdminSessions()
-    } catch (_) {
-    } finally {
-      setSavingSettings(false)
-    }
-  }
-
-  const addBreadType = () => {
-    if (!newBread.ar.trim()) return
-    const id = newBread.ar.toLowerCase().replace(/\s+/g, '_')
-    setBreadTypes(prev => [...prev, { ...newBread, id, light: `${newBread.color}11` }])
-    setNewBread({ ar:'', color:'#B83A0A' })
-  }
-
-  const updateRest = (index, updater) => {
-    setRests(prev => prev.map((rest, i) => (i === index ? updater(rest) : rest)))
-  }
-
-  const updateDrink = (index, updater) => {
-    setDrinks(prev => prev.map((drink, i) => (i === index ? updater(drink) : drink)))
-  }
-
   const shareWhatsApp = () => {
     const text = buildWhatsAppText(orders, delivery, sid, paymentSummary)
     window.open(getWhatsAppLink(text), '_blank')
@@ -698,8 +668,9 @@ export default function AdminPage() {
   }
 
   // FIX 2: added the missing return ( for the main session view
+  const isMenuTab = activeAdminTab === 'menu'
   return (
-    <div style={{ padding:'24px', maxWidth:1300, margin:'0 auto' }}>
+    <div style={{ padding: isMenuTab ? '12px' : '24px', maxWidth: 1300, margin: '0 auto', height: '100%', overflow: isMenuTab ? 'hidden' : 'auto' }}>
       {usingDefaults && (
         <div style={{ background:'#FEF3C7', color:'#92400E', borderRadius:16, padding:'14px 18px', fontSize:13, fontWeight:800, marginBottom:20 }}>
           تنبيه أمان: غيّر بيانات الدخول الافتراضية ومتغير `ADMIN_SESSION_SECRET` قبل أي استخدام خارجي.
@@ -707,12 +678,13 @@ export default function AdminPage() {
       )}
 
       {/* Admin Tabs Navigation */}
-      <div style={{ padding:'0 24px 16px', borderBottom: `1px solid ${C.border}`, display:'flex', gap:4, overflowX:'auto', flexWrap:'nowrap', marginBottom:24 }}>
+      <div style={{ padding: isMenuTab ? '0 16px 12px' : '0 24px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', marginBottom: isMenuTab ? 12 : 24 }}>
         {[
           { id: 'sessions', label: 'الجلسات', icon: Users },
           { id: 'analytics', label: 'إحصائيات', icon: FileText },
           { id: 'promo', label: 'كوبونات', icon: Wallet },
           { id: 'status', label: 'حالة الطلبات', icon: Clock },
+          { id: 'menu', label: 'إعدادات القائمة', icon: Settings },
         ].map(tab => (
           <button
             key={tab.id}
@@ -720,20 +692,20 @@ export default function AdminPage() {
             style={{
               display:'flex',
               alignItems:'center',
-              gap:6,
-              padding:'10px 18px',
+              gap: 6,
+              padding: isMenuTab ? '8px 14px' : '10px 18px',
               border:'none',
-              borderRadius:12,
+              borderRadius: isMenuTab ? 10 : 12,
               background: activeAdminTab === tab.id ? C.primary : 'transparent',
               color: activeAdminTab === tab.id ? '#FFF' : C.muted,
-              fontWeight:700,
-              fontSize:13,
+              fontWeight: 700,
+              fontSize: isMenuTab ? 12 : 13,
               cursor:'pointer',
               whiteSpace:'nowrap',
               transition:'all 0.2s'
             }}
           >
-            <tab.icon size={16}/>
+            <tab.icon size={isMenuTab ? 14 : 16}/>
             {tab.label}
           </button>
         ))}
@@ -1030,6 +1002,10 @@ export default function AdminPage() {
 
               <div style={{ fontSize:15, fontWeight:900, color:C.dark, marginTop:4 }}>📊 الملخص المجمع</div>
               <CombinedTotals allOrders={allOrders} breadTypes={breadTypes}/>
+              
+              <Btn onClick={shareWhatsApp} color="#25D366" style={{ width:'100%', height:48, marginTop:16 }}>
+                <MessageCircle size={18} style={{ marginLeft:8 }}/> مشاركة على واتساب
+              </Btn>
             </div>
             {/* FIX 3: properly closed admin-grid, sessions fragment, and added other tab panels */}
           </div>
@@ -1038,7 +1014,10 @@ export default function AdminPage() {
 
       {activeAdminTab === 'analytics' && <AnalyticsTab sid={sid} />}
       {activeAdminTab === 'promo' && <PromoCodesTab promoCodes={promoCodes} />}
-      {activeAdminTab === 'status' && <OrderStatusTab sid={sid} />}
+      {activeAdminTab === 'status' && <OrderStatusTab sid={sid} orders={orders} onUpdateStatus={async (uid, status, note) => {
+        await api.setOrderStatus(sid, uid, status, note)
+      }} />}
+      {activeAdminTab === 'menu' && <MenuSettingsTab />}
 
       {showExpected && (
         <Modal title="قائمة الأشخاص" onClose={() => setShowExpected(false)}>
@@ -1074,112 +1053,7 @@ export default function AdminPage() {
               </div>
             </div>
           ))}
-          <Btn onClick={saveEditOrder} style={{ width:'100%', marginTop:16 }}>حفظ</Btn>
-        </Modal>
-      )}
-
-      {showSettings && (
-        <Modal title="إعدادات المنيو" onClose={() => setShowSettings(false)} wide>
-          <div style={{ display:'flex', gap:12, marginBottom:20 }}>
-            <button onClick={() => setMenuTab('bread')} style={{ flex:1, padding:12, background:menuTab === 'bread' ? C.primary : C.tag, color:menuTab === 'bread' ? '#FFF' : C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>العيش</button>
-            <button onClick={() => setMenuTab('rests')} style={{ flex:1, padding:12, background:menuTab === 'rests' ? C.primary : C.tag, color:menuTab === 'rests' ? '#FFF' : C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>المطاعم</button>
-            <button onClick={() => setMenuTab('drinks')} style={{ flex:1, padding:12, background:menuTab === 'drinks' ? C.primary : C.tag, color:menuTab === 'drinks' ? '#FFF' : C.dark, border:'none', borderRadius:10, fontWeight:800, cursor:'pointer' }}>المشروبات</button>
-          </div>
-
-          {menuTab === 'bread' && (
-            <div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
-                {breadTypes.map((bread, index) => (
-                  <div key={bread.id} style={{ display:'grid', gridTemplateColumns:'1fr 70px 40px', gap:8, alignItems:'center', background:C.tag, padding:'10px 12px', borderRadius:12 }}>
-                    <input type="text" value={bread.ar} onChange={e => setBreadTypes(prev => prev.map((item, i) => i === index ? { ...item, ar:e.target.value } : item))} style={{ ...inpSt({ height:42 }) }} />
-                    <input type="color" value={bread.color} onChange={e => setBreadTypes(prev => prev.map((item, i) => i === index ? { ...item, color:e.target.value, light:`${e.target.value}11` } : item))} style={{ width:70, height:42, padding:0, border:'none', background:'transparent' }}/>
-                    <button onClick={() => setBreadTypes(prev => prev.filter(item => item.id !== bread.id))} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:10, height:42, cursor:'pointer' }}>
-                      <Trash2 size={16}/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 70px auto', gap:8, marginBottom:16 }}>
-                <input type="text" placeholder="نوع جديد" value={newBread.ar} onChange={e => setNewBread(prev => ({ ...prev, ar:e.target.value }))} style={inpSt({ height:42 })}/>
-                <input type="color" value={newBread.color} onChange={e => setNewBread(prev => ({ ...prev, color:e.target.value }))} style={{ width:70, height:42, padding:0, border:'none', background:'transparent' }}/>
-                <GhostBtn onClick={addBreadType} style={{ height:42, justifyContent:'center' }}><Plus size={16}/> إضافة</GhostBtn>
-              </div>
-              <Btn onClick={() => saveSettings('bread_types')} loading={savingSettings} style={{ width:'100%', height:46 }}>
-                <Save size={16}/> حفظ أنواع العيش
-              </Btn>
-            </div>
-          )}
-
-          {menuTab === 'rests' && (
-            <div>
-              <div style={{ display:'flex', flexDirection:'column', gap:16, maxHeight:440, overflowY:'auto', paddingRight:4 }}>
-                {rests.map((rest, restIndex) => (
-                  <div key={rest.id} style={{ background:C.tag, borderRadius:14, padding:14 }}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 70px 70px 80px 42px', gap:8, marginBottom:10 }}>
-                      <input type="text" value={rest.name} onChange={e => updateRest(restIndex, current => ({ ...current, name:e.target.value }))} style={inpSt({ height:42 })} placeholder="اسم المطعم"/>
-                      <input type="text" value={rest.emoji} onChange={e => updateRest(restIndex, current => ({ ...current, emoji:e.target.value }))} style={inpSt({ height:42, textAlign:'center' })} placeholder="🍽️"/>
-                      <input type="number" value={rest.delivery || 0} onChange={e => updateRest(restIndex, current => ({ ...current, delivery:parseFloat(e.target.value) || 0 }))} style={inpSt({ height:42 })} placeholder="توصيل"/>
-                      <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'#FFF', borderRadius:12, fontSize:12, fontWeight:800 }}>
-                        <input type="checkbox" checked={!!rest.hasBread} onChange={e => updateRest(restIndex, current => ({ ...current, hasBread:e.target.checked }))}/>
-                        عيش
-                      </label>
-                      <button onClick={() => setRests(prev => prev.filter((_, index) => index !== restIndex))} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:10, cursor:'pointer' }}>
-                        <Trash2 size={16}/>
-                      </button>
-                    </div>
-
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                      <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>لون الخلفية</span>
-                      <input type="color" value={rest.bg || '#FFF8E8'} onChange={e => updateRest(restIndex, current => ({ ...current, bg:e.target.value }))} style={{ width:50, height:34, padding:0, border:'none', background:'transparent' }}/>
-                    </div>
-
-                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                      {(rest.items || []).map((item, itemIndex) => (
-                        <div key={item.id || itemIndex} style={{ display:'grid', gridTemplateColumns:'1fr 90px 40px', gap:8 }}>
-                          <input type="text" value={item.name} onChange={e => updateRest(restIndex, current => ({ ...current, items:(current.items || []).map((currentItem, i) => i === itemIndex ? { ...currentItem, name:e.target.value } : currentItem) }))} style={inpSt({ height:40, fontSize:13 })} placeholder="اسم الصنف"/>
-                          <input type="number" value={item.price} onChange={e => updateRest(restIndex, current => ({ ...current, items:(current.items || []).map((currentItem, i) => i === itemIndex ? { ...currentItem, price:parseFloat(e.target.value) || 0 } : currentItem) }))} style={inpSt({ height:40, fontSize:13 })} placeholder="السعر"/>
-                          <button onClick={() => updateRest(restIndex, current => ({ ...current, items:(current.items || []).filter((_, i) => i !== itemIndex) }))} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:10, cursor:'pointer' }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <GhostBtn onClick={() => updateRest(restIndex, current => ({ ...current, items:[...(current.items || []), { id:`i${Date.now()}`, name:'', price:0 }] }))} style={{ width:'100%', marginTop:10, justifyContent:'center' }}>
-                      <Plus size={14}/> إضافة صنف
-                    </GhostBtn>
-                  </div>
-                ))}
-              </div>
-
-              <GhostBtn onClick={() => setRests(prev => [...prev, { id:Date.now(), name:'', emoji:'🍽️', bg:'#FFF8E8', hasBread:true, delivery:0, items:[] }])} style={{ width:'100%', marginTop:16, justifyContent:'center' }}>
-                <Plus size={16}/> إضافة مطعم
-              </GhostBtn>
-              <Btn onClick={() => saveSettings('rests')} loading={savingSettings} style={{ width:'100%', marginTop:10, height:46 }}>
-                <Save size={16}/> حفظ المطاعم
-              </Btn>
-            </div>
-          )}
-
-          {menuTab === 'drinks' && (
-            <div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:420, overflowY:'auto' }}>
-                {drinks.map((drink, index) => (
-                  <div key={drink.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr 40px', gap:8, alignItems:'center', background:C.tag, padding:'10px 12px', borderRadius:12 }}>
-                    <input type="text" value={drink.emoji} onChange={e => updateDrink(index, current => ({ ...current, emoji:e.target.value }))} style={inpSt({ textAlign:'center', height:42 })}/>
-                    <input type="text" value={drink.name} onChange={e => updateDrink(index, current => ({ ...current, name:e.target.value }))} style={inpSt({ height:42 })}/>
-                    <button onClick={() => setDrinks(prev => prev.filter((_, itemIndex) => itemIndex !== index))} style={{ border:'none', background:C.redLight, color:C.red, borderRadius:10, height:42, cursor:'pointer' }}>
-                      <Trash2 size={16}/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <GhostBtn onClick={() => setDrinks(prev => [...prev, { id:`d${Date.now()}`, name:'', emoji:'🍵' }])} style={{ width:'100%', marginTop:16, justifyContent:'center' }}>
-                <Plus size={16}/> إضافة مشروب
-              </GhostBtn>
-              <Btn onClick={() => saveSettings('drinks')} loading={savingSettings} style={{ width:'100%', marginTop:10, height:46 }}>
-                <Save size={16}/> حفظ المشروبات
-              </Btn>
-            </div>
-          )}
+<Btn onClick={saveEditOrder} style={{ width:'100%', marginTop:16 }}>حفظ</Btn>
         </Modal>
       )}
     </div>

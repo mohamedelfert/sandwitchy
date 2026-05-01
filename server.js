@@ -23,6 +23,8 @@ const DEFAULT_BREAD_TYPES = [
   { id: 'baladi', ar: 'عيش بلدي', color: '#B83A0A', light: '#FDEEE8' },
   { id: 'shamy', ar: 'عيش شامي', color: '#6B2EA0', light: '#F2E8FF' },
   { id: 'souri', ar: 'عيش سوري', color: '#0A7C5A', light: '#E4F5EF' },
+  { id: 'fino', ar: 'فينو', color: '#E11D48', light: '#FFE4E6' },
+  { id: 'tosta', ar: 'توست', color: '#CA8A04', light: '#FEF9C3' },
 ]
 
 const DEFAULT_RESTS = [

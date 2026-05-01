@@ -4,7 +4,7 @@ import { C } from '../constants/colors.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Btn } from '../components/Btn.jsx'
 
-export default function RegisterScreen({ onSwitchToLogin }) {
+export default function RegisterScreen({ onSwitchToLogin, onSuccess, onGuest }) {
   const { register } = useAuth()
   const [form, setForm] = useState({
     username: '',
@@ -45,6 +45,7 @@ export default function RegisterScreen({ onSwitchToLogin }) {
         email: form.email,
         phone: form.phone
       })
+      if (onSuccess) onSuccess()
     } catch (err) {
       setError(err.message || 'Registration failed')
     } finally {
@@ -271,6 +272,28 @@ export default function RegisterScreen({ onSwitchToLogin }) {
             </button>
           </p>
         </div>
+
+        {onGuest && (
+          <button
+            onClick={onGuest}
+            style={{
+              width: '100%',
+              marginTop: 16,
+              padding: '14px',
+              background: 'transparent',
+              border: '2px solid',
+              borderColor: C.border,
+              borderRadius: 14,
+              color: C.dark,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}
+          >
+            Continue as Guest
+          </button>
+        )}
       </div>
     </div>
   )

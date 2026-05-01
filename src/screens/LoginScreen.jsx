@@ -4,7 +4,7 @@ import { C } from '../constants/colors.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Btn } from '../components/Btn.jsx'
 
-export default function LoginScreen({ onSwitchToRegister }) {
+export default function LoginScreen({ onSwitchToRegister, onSuccess, onGuest }) {
   const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -19,6 +19,7 @@ export default function LoginScreen({ onSwitchToRegister }) {
     setError('')
     try {
       await login(username, password)
+      if (onSuccess) onSuccess()
     } catch (err) {
       setError(err.message || 'Login failed')
     } finally {
@@ -166,6 +167,28 @@ export default function LoginScreen({ onSwitchToRegister }) {
             </button>
           </p>
         </div>
+
+        {onGuest && (
+          <button
+            onClick={onGuest}
+            style={{
+              width: '100%',
+              marginTop: 16,
+              padding: '14px',
+              background: 'transparent',
+              border: '2px solid',
+              borderColor: C.border,
+              borderRadius: 14,
+              color: C.dark,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}
+          >
+            Continue as Guest
+          </button>
+        )}
       </div>
     </div>
   )
